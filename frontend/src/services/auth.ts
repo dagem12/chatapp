@@ -1,42 +1,65 @@
 import type { AuthUser, LoginCredentials, RegisterCredentials, ApiResponse } from '../types';
-import { apiService } from './api';
+import { currentUser } from '../utils/mockData';
 
 export class AuthService {
-  async login(credentials: LoginCredentials): Promise<ApiResponse<AuthUser>> {
-    const response = await apiService.post<AuthUser>('/auth/login', credentials);
+  async login(_credentials: LoginCredentials): Promise<ApiResponse<AuthUser>> {
+    // Mock login - accept any credentials
+    await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate network delay
     
-    if (response.success && response.data) {
-      localStorage.setItem('token', response.data.token);
-      localStorage.setItem('user', JSON.stringify(response.data));
-    }
+    const mockAuthUser: AuthUser = {
+      ...currentUser,
+      token: 'mock-jwt-token-' + Date.now(),
+    };
     
-    return response;
+    localStorage.setItem('token', mockAuthUser.token);
+    localStorage.setItem('user', JSON.stringify(mockAuthUser));
+    
+    return {
+      success: true,
+      data: mockAuthUser,
+    };
   }
 
   async register(credentials: RegisterCredentials): Promise<ApiResponse<AuthUser>> {
-    const response = await apiService.post<AuthUser>('/auth/register', credentials);
+    // Mock registration - accept any credentials
+    await new Promise(resolve => setTimeout(resolve, 1200)); // Simulate network delay
     
-    if (response.success && response.data) {
-      localStorage.setItem('token', response.data.token);
-      localStorage.setItem('user', JSON.stringify(response.data));
-    }
+    const mockAuthUser: AuthUser = {
+      id: 'current-user',
+      username: credentials.username,
+      email: credentials.email,
+      token: 'mock-jwt-token-' + Date.now(),
+    };
     
-    return response;
+    localStorage.setItem('token', mockAuthUser.token);
+    localStorage.setItem('user', JSON.stringify(mockAuthUser));
+    
+    return {
+      success: true,
+      data: mockAuthUser,
+    };
   }
 
   async logout(): Promise<void> {
-    try {
-      await apiService.post('/auth/logout');
-    } catch (error) {
-      console.error('Logout error:', error);
-    } finally {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-    }
+    // Mock logout - just clear local storage
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
   }
 
   async getCurrentUser(): Promise<ApiResponse<AuthUser>> {
-    return apiService.get<AuthUser>('/auth/me');
+    // Mock getCurrentUser - return stored user
+    const storedUser = this.getStoredUser();
+    if (storedUser) {
+      return {
+        success: true,
+        data: storedUser,
+      };
+    }
+    
+    return {
+      success: false,
+      error: 'No user found',
+    };
   }
 
   getStoredUser(): AuthUser | null {
