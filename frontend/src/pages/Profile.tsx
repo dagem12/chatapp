@@ -13,6 +13,12 @@ import {
   IconButton,
   useTheme,
   alpha,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Tabs,
+  Tab,
 } from '@mui/material';
 import {
   Edit as EditIcon,
@@ -20,6 +26,8 @@ import {
   Cancel as CancelIcon,
   PhotoCamera as PhotoCameraIcon,
   ArrowBack as ArrowBackIcon,
+  Upload as UploadIcon,
+  Link as LinkIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
@@ -39,6 +47,11 @@ export const Profile: React.FC = () => {
     email: '',
   });
   const [success, setSuccess] = useState(false);
+  const [avatarDialogOpen, setAvatarDialogOpen] = useState(false);
+  const [avatarTab, setAvatarTab] = useState(0);
+  const [avatarUrl, setAvatarUrl] = useState('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   const handleInputChange = (field: string) => (event: React.ChangeEvent<HTMLInputElement>) => {
     const value = event.target.value;
@@ -107,16 +120,77 @@ export const Profile: React.FC = () => {
     setIsEditing(false);
   };
 
-  const handleAvatarClick = async () => {
-    const newAvatarUrl = prompt('Enter new avatar URL:');
-    if (newAvatarUrl && newAvatarUrl.trim()) {
-      try {
-        await updateAvatar(newAvatarUrl.trim());
+  const handleAvatarClick = () => {
+    setAvatarDialogOpen(true);
+    setAvatarUrl('');
+    setSelectedFile(null);
+    setPreviewUrl(null);
+    setAvatarTab(0);
+  };
+
+  const handleAvatarDialogClose = () => {
+    setAvatarDialogOpen(false);
+    setAvatarUrl('');
+    setSelectedFile(null);
+    setPreviewUrl(null);
+  };
+
+  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
+    setAvatarTab(newValue);
+    setAvatarUrl('');
+    setSelectedFile(null);
+    setPreviewUrl(null);
+  };
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        alert('Please select an image file');
+        return;
+      }
+      
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        alert('File size must be less than 5MB');
+        return;
+      }
+
+      setSelectedFile(file);
+      
+      // Create preview URL
+      const url = URL.createObjectURL(file);
+      setPreviewUrl(url);
+    }
+  };
+
+  const handleUrlChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setAvatarUrl(event.target.value);
+  };
+
+  const handleAvatarSave = async () => {
+    try {
+      if (avatarTab === 0 && selectedFile) {
+        // File upload - convert to data URL for mock
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+          const dataUrl = e.target?.result as string;
+          await updateAvatar(dataUrl);
+          setSuccess(true);
+          setTimeout(() => setSuccess(false), 3000);
+          handleAvatarDialogClose();
+        };
+        reader.readAsDataURL(selectedFile);
+      } else if (avatarTab === 1 && avatarUrl.trim()) {
+        // URL upload
+        await updateAvatar(avatarUrl.trim());
         setSuccess(true);
         setTimeout(() => setSuccess(false), 3000);
-      } catch (err) {
-        console.error('Failed to update avatar:', err);
+        handleAvatarDialogClose();
       }
+    } catch (err) {
+      console.error('Failed to update avatar:', err);
     }
   };
 
@@ -344,6 +418,158 @@ export const Profile: React.FC = () => {
           </Box>
         </Box>
       </Paper>
+
+      {/* Avatar Change Dialog */}
+      <Dialog 
+        open={avatarDialogOpen} 
+        onClose={handleAvatarDialogClose}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.02)} 0%, ${alpha(theme.palette.secondary.main, 0.02)} 100%)`,
+          }
+        }}
+      >
+        <DialogTitle sx={{ 
+          textAlign: 'center', 
+          pb: 1,
+          background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+          backgroundClip: 'text',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          fontWeight: 'bold'
+        }}>
+          Change Profile Picture
+        </DialogTitle>
+        
+        <DialogContent sx={{ pt: 2 }}>
+          <Tabs 
+            value={avatarTab} 
+            onChange={handleTabChange} 
+            centered
+            sx={{ mb: 3 }}
+          >
+            <Tab 
+              icon={<UploadIcon />} 
+              label="Upload File" 
+              iconPosition="start"
+            />
+            <Tab 
+              icon={<LinkIcon />} 
+              label="From URL" 
+              iconPosition="start"
+            />
+          </Tabs>
+
+          {avatarTab === 0 && (
+            <Box sx={{ textAlign: 'center' }}>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleFileSelect}
+                style={{ display: 'none' }}
+                id="avatar-file-input"
+              />
+              <label htmlFor="avatar-file-input">
+                <Button
+                  variant="outlined"
+                  component="span"
+                  startIcon={<UploadIcon />}
+                  sx={{ 
+                    mb: 2,
+                    borderRadius: 2,
+                    px: 3,
+                    py: 1.5,
+                  }}
+                >
+                  Choose Image File
+                </Button>
+              </label>
+              
+              {selectedFile && (
+                <Box sx={{ mt: 2 }}>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                    Selected: {selectedFile.name}
+                  </Typography>
+                  {previewUrl && (
+                    <Avatar
+                      src={previewUrl}
+                      sx={{ 
+                        width: 100, 
+                        height: 100, 
+                        mx: 'auto',
+                        border: `2px solid ${theme.palette.primary.main}`,
+                      }}
+                    />
+                  )}
+                </Box>
+              )}
+            </Box>
+          )}
+
+          {avatarTab === 1 && (
+            <Box>
+              <TextField
+                fullWidth
+                label="Image URL"
+                value={avatarUrl}
+                onChange={handleUrlChange}
+                placeholder="https://example.com/image.jpg"
+                variant="outlined"
+                sx={{ 
+                  '& .MuiOutlinedInput-root': { 
+                    borderRadius: 2,
+                    bgcolor: alpha(theme.palette.background.paper, 0.8),
+                  }
+                }}
+              />
+              {avatarUrl && (
+                <Box sx={{ mt: 2, textAlign: 'center' }}>
+                  <Avatar
+                    src={avatarUrl}
+                    sx={{ 
+                      width: 100, 
+                      height: 100, 
+                      mx: 'auto',
+                      border: `2px solid ${theme.palette.primary.main}`,
+                    }}
+                    onError={() => {
+                      // Handle invalid URL
+                    }}
+                  />
+                </Box>
+              )}
+            </Box>
+          )}
+        </DialogContent>
+
+        <DialogActions sx={{ p: 3, pt: 1 }}>
+          <Button 
+            onClick={handleAvatarDialogClose}
+            sx={{ borderRadius: 2 }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleAvatarSave}
+            variant="contained"
+            disabled={
+              (avatarTab === 0 && !selectedFile) || 
+              (avatarTab === 1 && !avatarUrl.trim()) ||
+              isLoading
+            }
+            startIcon={isLoading ? <CircularProgress size={16} color="inherit" /> : <PhotoCameraIcon />}
+            sx={{ 
+              borderRadius: 2,
+              px: 3,
+            }}
+          >
+            {isLoading ? 'Updating...' : 'Update Avatar'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 };
