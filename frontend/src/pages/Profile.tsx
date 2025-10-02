@@ -19,6 +19,11 @@ import {
   DialogActions,
   Tabs,
   Tab,
+  Card,
+  CardContent,
+  Chip,
+  Fade,
+  Slide,
 } from '@mui/material';
 import {
   Edit as EditIcon,
@@ -207,44 +212,87 @@ export const Profile: React.FC = () => {
   return (
     <Container maxWidth="md" sx={{ py: 4 }}>
       {/* Header */}
-      <Box sx={{ mb: 4, display: 'flex', alignItems: 'center', gap: 2 }}>
-        <IconButton 
-          onClick={() => navigate('/chat')}
-          sx={{ 
-            bgcolor: alpha(theme.palette.primary.main, 0.1),
-            '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.2) }
-          }}
-        >
-          <ArrowBackIcon />
-        </IconButton>
-        <Typography variant="h4" fontWeight="bold" color="primary">
-          Profile Settings
-        </Typography>
-      </Box>
+      <Slide direction="down" in timeout={600}>
+        <Box sx={{ mb: 4, display: 'flex', alignItems: 'center', gap: 2 }}>
+          <IconButton 
+            onClick={() => navigate('/chat')}
+            sx={{ 
+              bgcolor: alpha(theme.palette.primary.main, 0.1),
+              '&:hover': { 
+                bgcolor: alpha(theme.palette.primary.main, 0.2),
+                transform: 'scale(1.05)',
+                transition: 'all 0.2s ease-in-out'
+              }
+            }}
+          >
+            <ArrowBackIcon />
+          </IconButton>
+          <Typography 
+            variant="h4" 
+            fontWeight="bold" 
+            sx={{
+              background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+              backgroundClip: 'text',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+            }}
+          >
+            Profile Settings
+          </Typography>
+        </Box>
+      </Slide>
 
       {/* Success Alert */}
-      {success && (
-        <Alert severity="success" sx={{ mb: 3 }}>
+      <Fade in={success} timeout={500}>
+        <Alert 
+          severity="success" 
+          sx={{ 
+            mb: 3,
+            borderRadius: 2,
+            boxShadow: `0 4px 12px ${alpha(theme.palette.success.main, 0.2)}`,
+          }}
+        >
           Profile updated successfully!
         </Alert>
-      )}
+      </Fade>
 
       {/* Error Alert */}
-      {error && (
-        <Alert severity="error" sx={{ mb: 3 }}>
+      <Fade in={!!error} timeout={500}>
+        <Alert 
+          severity="error" 
+          sx={{ 
+            mb: 3,
+            borderRadius: 2,
+            boxShadow: `0 4px 12px ${alpha(theme.palette.error.main, 0.2)}`,
+          }}
+        >
           {error}
         </Alert>
-      )}
+      </Fade>
 
-      <Paper 
-        elevation={0}
-        sx={{ 
-          p: 4, 
-          borderRadius: 3,
-          background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.02)} 0%, ${alpha(theme.palette.secondary.main, 0.02)} 100%)`,
-          border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
-        }}
-      >
+      <Slide direction="up" in timeout={800}>
+        <Paper 
+          elevation={0}
+          sx={{ 
+            p: 4, 
+            borderRadius: 3,
+            background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.02)} 0%, ${alpha(theme.palette.secondary.main, 0.02)} 100%)`,
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
+            boxShadow: `0 8px 32px ${alpha(theme.palette.primary.main, 0.08)}`,
+            backdropFilter: 'blur(10px)',
+            position: 'relative',
+            overflow: 'hidden',
+            '&::before': {
+              content: '""',
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              height: '4px',
+              background: `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+            }
+          }}
+        >
         <Box sx={{ 
           display: 'flex', 
           flexDirection: { xs: 'column', md: 'row' }, 
@@ -252,70 +300,129 @@ export const Profile: React.FC = () => {
           alignItems: { xs: 'center', md: 'flex-start' }
         }}>
           {/* Avatar Section */}
-          <Box sx={{ 
-            display: 'flex', 
-            flexDirection: 'column', 
-            alignItems: 'center', 
-            gap: 2,
-            minWidth: { md: '200px' }
-          }}>
-            <Box sx={{ position: 'relative' }}>
-              <Avatar
-                src={user.avatar}
-                sx={{ 
-                  width: 120, 
-                  height: 120,
-                  border: `4px solid ${theme.palette.primary.main}`,
-                  fontSize: '2rem',
-                }}
-              >
-                {user.username?.charAt(0).toUpperCase()}
-              </Avatar>
-              <IconButton
-                onClick={handleAvatarClick}
-                sx={{
-                  position: 'absolute',
-                  bottom: -8,
-                  right: -8,
-                  bgcolor: theme.palette.primary.main,
-                  color: 'white',
-                  width: 40,
-                  height: 40,
-                  '&:hover': {
-                    bgcolor: theme.palette.primary.dark,
-                  },
-                }}
-              >
-                <PhotoCameraIcon fontSize="small" />
-              </IconButton>
-            </Box>
-            <Typography variant="h6" fontWeight="bold">
-              {user.username}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {user.isOnline ? 'Online' : 'Offline'}
-            </Typography>
-          </Box>
+          <Fade in timeout={1000}>
+            <Card sx={{ 
+              p: 3,
+              borderRadius: 3,
+              background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.8)} 0%, ${alpha(theme.palette.primary.main, 0.05)} 100%)`,
+              border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
+              boxShadow: `0 4px 20px ${alpha(theme.palette.primary.main, 0.1)}`,
+              minWidth: { md: '200px' }
+            }}>
+              <CardContent sx={{ p: 0, '&:last-child': { pb: 0 } }}>
+                <Box sx={{ 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  alignItems: 'center', 
+                  gap: 2
+                }}>
+                  <Box sx={{ position: 'relative' }}>
+                    <Avatar
+                      src={user.avatar}
+                      sx={{ 
+                        width: 120, 
+                        height: 120,
+                        border: `4px solid ${theme.palette.primary.main}`,
+                        fontSize: '2rem',
+                        boxShadow: `0 8px 24px ${alpha(theme.palette.primary.main, 0.3)}`,
+                        transition: 'all 0.3s ease-in-out',
+                        '&:hover': {
+                          transform: 'scale(1.05)',
+                          boxShadow: `0 12px 32px ${alpha(theme.palette.primary.main, 0.4)}`,
+                        }
+                      }}
+                    >
+                      {user.username?.charAt(0).toUpperCase()}
+                    </Avatar>
+                    <IconButton
+                      onClick={handleAvatarClick}
+                      sx={{
+                        position: 'absolute',
+                        bottom: -8,
+                        right: -8,
+                        bgcolor: theme.palette.primary.main,
+                        color: 'white',
+                        width: 40,
+                        height: 40,
+                        boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.4)}`,
+                        transition: 'all 0.2s ease-in-out',
+                        '&:hover': {
+                          bgcolor: theme.palette.primary.dark,
+                          transform: 'scale(1.1)',
+                          boxShadow: `0 6px 16px ${alpha(theme.palette.primary.main, 0.5)}`,
+                        },
+                      }}
+                    >
+                      <PhotoCameraIcon fontSize="small" />
+                    </IconButton>
+                  </Box>
+                  <Typography variant="h6" fontWeight="bold" sx={{ textAlign: 'center' }}>
+                    {user.username}
+                  </Typography>
+                  <Chip
+                    label={user.isOnline ? 'Online' : 'Offline'}
+                    color={user.isOnline ? 'success' : 'default'}
+                    size="small"
+                    sx={{
+                      fontWeight: 600,
+                      '& .MuiChip-label': {
+                        px: 2,
+                      }
+                    }}
+                  />
+                </Box>
+              </CardContent>
+            </Card>
+          </Fade>
 
           {/* Profile Information */}
-          <Box sx={{ flex: 1, width: '100%' }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-              <Typography variant="h6" fontWeight="bold">
-                Profile Information
-              </Typography>
-              {!isEditing && (
-                <Button
-                  startIcon={<EditIcon />}
-                  onClick={() => setIsEditing(true)}
-                  variant="outlined"
-                  sx={{ borderRadius: 2 }}
+          <Fade in timeout={1200}>
+            <Box sx={{ flex: 1, width: '100%' }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+                <Typography 
+                  variant="h6" 
+                  fontWeight="bold"
+                  sx={{
+                    background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+                    backgroundClip: 'text',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                  }}
                 >
-                  Edit Profile
-                </Button>
-              )}
-            </Box>
+                  Profile Information
+                </Typography>
+                {!isEditing && (
+                  <Button
+                    startIcon={<EditIcon />}
+                    onClick={() => setIsEditing(true)}
+                    variant="outlined"
+                    sx={{ 
+                      borderRadius: 2,
+                      px: 3,
+                      py: 1,
+                      borderColor: theme.palette.primary.main,
+                      color: theme.palette.primary.main,
+                      '&:hover': {
+                        borderColor: theme.palette.primary.dark,
+                        bgcolor: alpha(theme.palette.primary.main, 0.1),
+                        transform: 'translateY(-2px)',
+                        boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.3)}`,
+                      },
+                      transition: 'all 0.2s ease-in-out',
+                    }}
+                  >
+                    Edit Profile
+                  </Button>
+                )}
+              </Box>
 
-            <Divider sx={{ mb: 3 }} />
+              <Divider 
+                sx={{ 
+                  mb: 3,
+                  background: `linear-gradient(90deg, transparent, ${theme.palette.primary.main}, transparent)`,
+                  height: '2px',
+                }} 
+              />
 
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
               {/* Username Field */}
@@ -339,7 +446,20 @@ export const Profile: React.FC = () => {
                     }}
                   />
                 ) : (
-                  <Typography variant="body1" sx={{ p: 2, bgcolor: alpha(theme.palette.grey[100], 0.5), borderRadius: 2 }}>
+                  <Typography 
+                    variant="body1" 
+                    sx={{ 
+                      p: 2, 
+                      bgcolor: alpha(theme.palette.grey[100], 0.5), 
+                      borderRadius: 2,
+                      border: `1px solid ${alpha(theme.palette.grey[300], 0.5)}`,
+                      transition: 'all 0.2s ease-in-out',
+                      '&:hover': {
+                        bgcolor: alpha(theme.palette.primary.main, 0.05),
+                        borderColor: alpha(theme.palette.primary.main, 0.3),
+                      }
+                    }}
+                  >
                     {user.username}
                   </Typography>
                 )}
@@ -367,7 +487,20 @@ export const Profile: React.FC = () => {
                     }}
                   />
                 ) : (
-                  <Typography variant="body1" sx={{ p: 2, bgcolor: alpha(theme.palette.grey[100], 0.5), borderRadius: 2 }}>
+                  <Typography 
+                    variant="body1" 
+                    sx={{ 
+                      p: 2, 
+                      bgcolor: alpha(theme.palette.grey[100], 0.5), 
+                      borderRadius: 2,
+                      border: `1px solid ${alpha(theme.palette.grey[300], 0.5)}`,
+                      transition: 'all 0.2s ease-in-out',
+                      '&:hover': {
+                        bgcolor: alpha(theme.palette.primary.main, 0.05),
+                        borderColor: alpha(theme.palette.primary.main, 0.3),
+                      }
+                    }}
+                  >
                     {user.email}
                   </Typography>
                 )}
@@ -378,7 +511,18 @@ export const Profile: React.FC = () => {
                 <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
                   User ID
                 </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ p: 2, bgcolor: alpha(theme.palette.grey[100], 0.3), borderRadius: 2 }}>
+                <Typography 
+                  variant="body2" 
+                  color="text.secondary" 
+                  sx={{ 
+                    p: 2, 
+                    bgcolor: alpha(theme.palette.grey[100], 0.3), 
+                    borderRadius: 2,
+                    border: `1px solid ${alpha(theme.palette.grey[300], 0.3)}`,
+                    fontFamily: 'monospace',
+                    fontSize: '0.875rem',
+                  }}
+                >
                   {user.id}
                 </Typography>
               </Box>
@@ -395,6 +539,18 @@ export const Profile: React.FC = () => {
                       borderRadius: 2,
                       px: 3,
                       py: 1.5,
+                      background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+                      boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.3)}`,
+                      '&:hover': {
+                        background: `linear-gradient(45deg, ${theme.palette.primary.dark}, ${theme.palette.secondary.dark})`,
+                        transform: 'translateY(-2px)',
+                        boxShadow: `0 6px 16px ${alpha(theme.palette.primary.main, 0.4)}`,
+                      },
+                      '&:disabled': {
+                        background: theme.palette.grey[300],
+                        color: theme.palette.grey[500],
+                      },
+                      transition: 'all 0.2s ease-in-out',
                     }}
                   >
                     {isLoading ? 'Saving...' : 'Save Changes'}
@@ -408,6 +564,15 @@ export const Profile: React.FC = () => {
                       borderRadius: 2,
                       px: 3,
                       py: 1.5,
+                      borderColor: theme.palette.grey[400],
+                      color: theme.palette.grey[600],
+                      '&:hover': {
+                        borderColor: theme.palette.grey[600],
+                        bgcolor: alpha(theme.palette.grey[500], 0.1),
+                        transform: 'translateY(-2px)',
+                        boxShadow: `0 4px 12px ${alpha(theme.palette.grey[500], 0.3)}`,
+                      },
+                      transition: 'all 0.2s ease-in-out',
                     }}
                   >
                     Cancel
@@ -416,8 +581,10 @@ export const Profile: React.FC = () => {
               )}
             </Box>
           </Box>
+        </Fade>
         </Box>
       </Paper>
+      </Slide>
 
       {/* Avatar Change Dialog */}
       <Dialog 
