@@ -75,6 +75,32 @@ export class AuthService {
     return localStorage.getItem('token');
   }
 
+  async updateProfile(data: { username: string; email: string }): Promise<ApiResponse<AuthUser>> {
+    // Mock profile update
+    await new Promise(resolve => setTimeout(resolve, 800)); // Simulate network delay
+    
+    const storedUser = this.getStoredUser();
+    if (!storedUser) {
+      return {
+        success: false,
+        error: 'User not found',
+      };
+    }
+
+    const updatedUser: AuthUser = {
+      ...storedUser,
+      username: data.username,
+      email: data.email,
+    };
+    
+    localStorage.setItem('user', JSON.stringify(updatedUser));
+    
+    return {
+      success: true,
+      data: updatedUser,
+    };
+  }
+
   isAuthenticated(): boolean {
     return !!this.getStoredToken();
   }

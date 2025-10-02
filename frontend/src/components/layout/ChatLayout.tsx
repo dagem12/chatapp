@@ -20,6 +20,7 @@ import {
   Settings,
 } from '@mui/icons-material';
 import { useAuth } from '../../hooks/useAuth';
+import { useNavigate } from 'react-router-dom';
 import ConversationSidebar from '../chat/ConversationSidebar';
 import ChatWindow from '../chat/ChatWindow';
 
@@ -27,6 +28,7 @@ const DRAWER_WIDTH = 320;
 
 const ChatLayout: React.FC = () => {
   const theme = useTheme();
+  const navigate = useNavigate();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const { user, logout } = useAuth();
   
@@ -43,6 +45,11 @@ const ChatLayout: React.FC = () => {
 
   const handleProfileMenuClose = () => {
     setAnchorEl(null);
+  };
+
+  const handleProfileClick = () => {
+    handleProfileMenuClose();
+    navigate('/profile');
   };
 
   const handleLogout = () => {
@@ -118,7 +125,7 @@ const ChatLayout: React.FC = () => {
         open={Boolean(anchorEl)}
         onClose={handleProfileMenuClose}
       >
-        <MenuItem onClick={handleProfileMenuClose}>
+        <MenuItem onClick={handleProfileClick}>
           <AccountCircle sx={{ mr: 1 }} />
           Profile
         </MenuItem>

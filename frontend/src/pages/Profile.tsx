@@ -7,7 +7,6 @@ import {
   TextField,
   Button,
   Avatar,
-  Grid,
   Divider,
   Alert,
   CircularProgress,
@@ -28,7 +27,7 @@ import { useNavigate } from 'react-router-dom';
 export const Profile: React.FC = () => {
   const theme = useTheme();
   const navigate = useNavigate();
-  const { user, updateProfile, loading, error } = useAuth();
+  const { user, updateProfile, isLoading, error } = useAuth();
   
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
@@ -119,51 +118,60 @@ export const Profile: React.FC = () => {
           border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
         }}
       >
-        <Grid container spacing={4}>
+        <Box sx={{ 
+          display: 'flex', 
+          flexDirection: { xs: 'column', md: 'row' }, 
+          gap: 4,
+          alignItems: { xs: 'center', md: 'flex-start' }
+        }}>
           {/* Avatar Section */}
-          <Grid item xs={12} md={4}>
-            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-              <Box sx={{ position: 'relative' }}>
-                <Avatar
-                  src={user.avatar}
-                  sx={{ 
-                    width: 120, 
-                    height: 120,
-                    border: `4px solid ${theme.palette.primary.main}`,
-                    fontSize: '2rem',
-                  }}
-                >
-                  {user.username?.charAt(0).toUpperCase()}
-                </Avatar>
-                <IconButton
-                  onClick={handleAvatarClick}
-                  sx={{
-                    position: 'absolute',
-                    bottom: -8,
-                    right: -8,
-                    bgcolor: theme.palette.primary.main,
-                    color: 'white',
-                    width: 40,
-                    height: 40,
-                    '&:hover': {
-                      bgcolor: theme.palette.primary.dark,
-                    },
-                  }}
-                >
-                  <PhotoCameraIcon fontSize="small" />
-                </IconButton>
-              </Box>
-              <Typography variant="h6" fontWeight="bold">
-                {user.username}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {user.isOnline ? 'Online' : 'Offline'}
-              </Typography>
+          <Box sx={{ 
+            display: 'flex', 
+            flexDirection: 'column', 
+            alignItems: 'center', 
+            gap: 2,
+            minWidth: { md: '200px' }
+          }}>
+            <Box sx={{ position: 'relative' }}>
+              <Avatar
+                src={user.avatar}
+                sx={{ 
+                  width: 120, 
+                  height: 120,
+                  border: `4px solid ${theme.palette.primary.main}`,
+                  fontSize: '2rem',
+                }}
+              >
+                {user.username?.charAt(0).toUpperCase()}
+              </Avatar>
+              <IconButton
+                onClick={handleAvatarClick}
+                sx={{
+                  position: 'absolute',
+                  bottom: -8,
+                  right: -8,
+                  bgcolor: theme.palette.primary.main,
+                  color: 'white',
+                  width: 40,
+                  height: 40,
+                  '&:hover': {
+                    bgcolor: theme.palette.primary.dark,
+                  },
+                }}
+              >
+                <PhotoCameraIcon fontSize="small" />
+              </IconButton>
             </Box>
-          </Grid>
+            <Typography variant="h6" fontWeight="bold">
+              {user.username}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {user.isOnline ? 'Online' : 'Offline'}
+            </Typography>
+          </Box>
 
           {/* Profile Information */}
-          <Grid item xs={12} md={8}>
+          <Box sx={{ flex: 1, width: '100%' }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
               <Typography variant="h6" fontWeight="bold">
                 Profile Information
@@ -249,22 +257,22 @@ export const Profile: React.FC = () => {
                 <Box sx={{ display: 'flex', gap: 2, pt: 2 }}>
                   <Button
                     variant="contained"
-                    startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <SaveIcon />}
+                    startIcon={isLoading ? <CircularProgress size={16} color="inherit" /> : <SaveIcon />}
                     onClick={handleSave}
-                    disabled={loading}
+                    disabled={isLoading}
                     sx={{ 
                       borderRadius: 2,
                       px: 3,
                       py: 1.5,
                     }}
                   >
-                    {loading ? 'Saving...' : 'Save Changes'}
+                    {isLoading ? 'Saving...' : 'Save Changes'}
                   </Button>
                   <Button
                     variant="outlined"
                     startIcon={<CancelIcon />}
                     onClick={handleCancel}
-                    disabled={loading}
+                    disabled={isLoading}
                     sx={{ 
                       borderRadius: 2,
                       px: 3,
@@ -276,8 +284,8 @@ export const Profile: React.FC = () => {
                 </Box>
               )}
             </Box>
-          </Grid>
-        </Grid>
+          </Box>
+        </Box>
       </Paper>
     </Container>
   );

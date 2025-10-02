@@ -8,6 +8,7 @@ interface AuthContextType extends AuthState {
   register: (credentials: RegisterCredentials) => Promise<boolean>;
   logout: () => void;
   clearError: () => void;
+  updateProfile: (data: { username: string; email: string }) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -141,12 +142,32 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     dispatch({ type: 'CLEAR_ERROR' });
   }, []);
 
+  const updateProfile = useCallback(async (data: { username: string; email: string }): Promise<void> => {
+    dispatch({ type: 'AUTH_START' });
+
+    try {
+      const response = await authService.updateProfile(data);
+      
+      if (response.success && response.data) {
+        dispatch({ type: 'AUTH_SUCCESS', payload: response.data });
+      } else {
+        dispatch({ type: 'AUTH_ERROR', payload: response.error || 'Profile update failed' });
+        throw new Error(response.error || 'Profile update failed');
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Profile update failed';
+      dispatch({ type: 'AUTH_ERROR', payload: errorMessage });
+      throw error;
+    }
+  }, []);
+
   const value: AuthContextType = {
     ...state,
     login,
     register,
     logout,
     clearError,
+    updateProfile,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
