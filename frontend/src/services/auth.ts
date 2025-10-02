@@ -76,7 +76,7 @@ export class AuthService {
   }
 
   async updateProfile(data: { username: string; email: string }): Promise<ApiResponse<AuthUser>> {
-    // Mock profile update
+    // Mock profile update with validation
     await new Promise(resolve => setTimeout(resolve, 800)); // Simulate network delay
     
     const storedUser = this.getStoredUser();
@@ -87,10 +87,84 @@ export class AuthService {
       };
     }
 
+    // Basic validation
+    if (!data.username.trim()) {
+      return {
+        success: false,
+        error: 'Username is required',
+      };
+    }
+
+    if (!data.email.trim()) {
+      return {
+        success: false,
+        error: 'Email is required',
+      };
+    }
+
+    // Simple email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(data.email)) {
+      return {
+        success: false,
+        error: 'Please enter a valid email address',
+      };
+    }
+
+    // Username length validation
+    if (data.username.length < 2) {
+      return {
+        success: false,
+        error: 'Username must be at least 2 characters long',
+      };
+    }
+
+    if (data.username.length > 30) {
+      return {
+        success: false,
+        error: 'Username must be less than 30 characters',
+      };
+    }
+
     const updatedUser: AuthUser = {
       ...storedUser,
-      username: data.username,
-      email: data.email,
+      username: data.username.trim(),
+      email: data.email.trim().toLowerCase(),
+    };
+    
+    localStorage.setItem('user', JSON.stringify(updatedUser));
+    
+    return {
+      success: true,
+      data: updatedUser,
+    };
+  }
+
+  async updateAvatar(avatarUrl: string): Promise<ApiResponse<AuthUser>> {
+    // Mock avatar update
+    await new Promise(resolve => setTimeout(resolve, 500)); // Simulate network delay
+    
+    const storedUser = this.getStoredUser();
+    if (!storedUser) {
+      return {
+        success: false,
+        error: 'User not found',
+      };
+    }
+
+    // Basic URL validation
+    try {
+      new URL(avatarUrl);
+    } catch {
+      return {
+        success: false,
+        error: 'Please enter a valid URL',
+      };
+    }
+
+    const updatedUser: AuthUser = {
+      ...storedUser,
+      avatar: avatarUrl,
     };
     
     localStorage.setItem('user', JSON.stringify(updatedUser));

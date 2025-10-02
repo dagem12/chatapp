@@ -27,23 +27,64 @@ import { useNavigate } from 'react-router-dom';
 export const Profile: React.FC = () => {
   const theme = useTheme();
   const navigate = useNavigate();
-  const { user, updateProfile, isLoading, error } = useAuth();
+  const { user, updateProfile, updateAvatar, isLoading, error } = useAuth();
   
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
     username: user?.username || '',
     email: user?.email || '',
   });
+  const [formErrors, setFormErrors] = useState({
+    username: '',
+    email: '',
+  });
   const [success, setSuccess] = useState(false);
 
   const handleInputChange = (field: string) => (event: React.ChangeEvent<HTMLInputElement>) => {
+    const value = event.target.value;
     setFormData(prev => ({
       ...prev,
-      [field]: event.target.value,
+      [field]: value,
+    }));
+    
+    // Clear error when user starts typing
+    setFormErrors(prev => ({
+      ...prev,
+      [field]: '',
     }));
   };
 
   const handleSave = async () => {
+    // Basic client-side validation
+    const errors = {
+      username: '',
+      email: '',
+    };
+
+    if (!formData.username.trim()) {
+      errors.username = 'Username is required';
+    } else if (formData.username.length < 2) {
+      errors.username = 'Username must be at least 2 characters';
+    } else if (formData.username.length > 30) {
+      errors.username = 'Username must be less than 30 characters';
+    }
+
+    if (!formData.email.trim()) {
+      errors.email = 'Email is required';
+    } else {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(formData.email)) {
+        errors.email = 'Please enter a valid email address';
+      }
+    }
+
+    setFormErrors(errors);
+
+    // If there are errors, don't proceed
+    if (errors.username || errors.email) {
+      return;
+    }
+
     try {
       await updateProfile(formData);
       setIsEditing(false);
@@ -59,12 +100,24 @@ export const Profile: React.FC = () => {
       username: user?.username || '',
       email: user?.email || '',
     });
+    setFormErrors({
+      username: '',
+      email: '',
+    });
     setIsEditing(false);
   };
 
-  const handleAvatarClick = () => {
-    // TODO: Implement avatar upload
-    console.log('Avatar upload clicked');
+  const handleAvatarClick = async () => {
+    const newAvatarUrl = prompt('Enter new avatar URL:');
+    if (newAvatarUrl && newAvatarUrl.trim()) {
+      try {
+        await updateAvatar(newAvatarUrl.trim());
+        setSuccess(true);
+        setTimeout(() => setSuccess(false), 3000);
+      } catch (err) {
+        console.error('Failed to update avatar:', err);
+      }
+    }
   };
 
   if (!user) {
@@ -202,6 +255,8 @@ export const Profile: React.FC = () => {
                     value={formData.username}
                     onChange={handleInputChange('username')}
                     variant="outlined"
+                    error={!!formErrors.username}
+                    helperText={formErrors.username}
                     sx={{ 
                       '& .MuiOutlinedInput-root': { 
                         borderRadius: 2,
@@ -228,6 +283,8 @@ export const Profile: React.FC = () => {
                     value={formData.email}
                     onChange={handleInputChange('email')}
                     variant="outlined"
+                    error={!!formErrors.email}
+                    helperText={formErrors.email}
                     sx={{ 
                       '& .MuiOutlinedInput-root': { 
                         borderRadius: 2,

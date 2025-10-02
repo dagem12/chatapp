@@ -9,6 +9,7 @@ interface AuthContextType extends AuthState {
   logout: () => void;
   clearError: () => void;
   updateProfile: (data: { username: string; email: string }) => Promise<void>;
+  updateAvatar: (avatarUrl: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -161,6 +162,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }, []);
 
+  const updateAvatar = useCallback(async (avatarUrl: string): Promise<void> => {
+    dispatch({ type: 'AUTH_START' });
+
+    try {
+      const response = await authService.updateAvatar(avatarUrl);
+      
+      if (response.success && response.data) {
+        dispatch({ type: 'AUTH_SUCCESS', payload: response.data });
+      } else {
+        dispatch({ type: 'AUTH_ERROR', payload: response.error || 'Avatar update failed' });
+        throw new Error(response.error || 'Avatar update failed');
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Avatar update failed';
+      dispatch({ type: 'AUTH_ERROR', payload: errorMessage });
+      throw error;
+    }
+  }, []);
+
   const value: AuthContextType = {
     ...state,
     login,
@@ -168,6 +188,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     logout,
     clearError,
     updateProfile,
+    updateAvatar,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
