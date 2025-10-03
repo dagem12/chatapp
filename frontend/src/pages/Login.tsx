@@ -402,7 +402,7 @@ const LoginForm: React.FC<LoginFormProps> = ({
               color: theme.palette.text.primary,
             }}
           >
-            Welcome Back! 👋
+            Welcome Back!
           </Typography>
           
           <Typography 
