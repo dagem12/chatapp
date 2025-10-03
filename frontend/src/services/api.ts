@@ -1,5 +1,4 @@
 import axios, { type AxiosInstance, type AxiosResponse } from 'axios';
-import type { ApiResponse } from '../types';
 import { config } from '../config/env';
 
 class ApiService {
@@ -39,52 +38,20 @@ class ApiService {
     );
   }
 
-  async get<T>(url: string): Promise<ApiResponse<T>> {
-    try {
-      const response = await this.api.get(url);
-      return response.data;
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.response?.data?.message || error.message || 'An error occurred',
-      };
-    }
+  async get<T>(url: string): Promise<AxiosResponse<T>> {
+    return await this.api.get(url);
   }
 
-  async post<T>(url: string, data?: any): Promise<ApiResponse<T>> {
-    try {
-      const response = await this.api.post(url, data);
-      return response.data;
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.response?.data?.message || error.message || 'An error occurred',
-      };
-    }
+  async post<T>(url: string, data?: any): Promise<AxiosResponse<T>> {
+    return await this.api.post(url, data);
   }
 
-  async put<T>(url: string, data?: any): Promise<ApiResponse<T>> {
-    try {
-      const response = await this.api.put(url, data);
-      return response.data;
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.response?.data?.message || error.message || 'An error occurred',
-      };
-    }
+  async put<T>(url: string, data?: any): Promise<AxiosResponse<T>> {
+    return await this.api.put(url, data);
   }
 
-  async delete<T>(url: string): Promise<ApiResponse<T>> {
-    try {
-      const response = await this.api.delete(url);
-      return response.data;
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.response?.data?.message || error.message || 'An error occurred',
-      };
-    }
+  async delete<T>(url: string): Promise<AxiosResponse<T>> {
+    return await this.api.delete(url);
   }
 }
 

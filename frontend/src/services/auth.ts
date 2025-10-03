@@ -1,43 +1,72 @@
-import type { AuthUser, LoginCredentials, RegisterCredentials, ApiResponse } from '../types';
-import { currentUser } from '../utils/mockData';
+import type { AuthUser, LoginCredentials, RegisterCredentials, ApiResponse, AuthResponse, ProfileResponse } from '../types';
+import { mapUserDataToUser } from '../types';
+import { apiService } from './api';
 
 export class AuthService {
-  async login(_credentials: LoginCredentials): Promise<ApiResponse<AuthUser>> {
-    // Mock login - accept any credentials
-    await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate network delay
-    
-    const mockAuthUser: AuthUser = {
-      ...currentUser,
-      token: 'mock-jwt-token-' + Date.now(),
-    };
-    
-    localStorage.setItem('token', mockAuthUser.token);
-    localStorage.setItem('user', JSON.stringify(mockAuthUser));
-    
-    return {
-      success: true,
-      data: mockAuthUser,
-    };
+  async login(credentials: LoginCredentials): Promise<ApiResponse<AuthUser>> {
+    try {
+      const response = await apiService.post<AuthResponse>('/auth/login', credentials);
+      
+      if (response.data.success && response.data.data) {
+        const { user, token } = response.data.data;
+        const authUser: AuthUser = {
+          ...mapUserDataToUser(user),
+          token,
+        };
+        
+        localStorage.setItem('token', token);
+        localStorage.setItem('user', JSON.stringify(authUser));
+        
+        return {
+          success: true,
+          data: authUser,
+        };
+      } else {
+        return {
+          success: false,
+          error: response.data.message || 'Login failed',
+        };
+      }
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || error.message || 'Login failed';
+      return {
+        success: false,
+        error: errorMessage,
+      };
+    }
   }
 
   async register(credentials: RegisterCredentials): Promise<ApiResponse<AuthUser>> {
-    // Mock registration - accept any credentials
-    await new Promise(resolve => setTimeout(resolve, 1200)); // Simulate network delay
-    
-    const mockAuthUser: AuthUser = {
-      id: 'current-user',
-      username: credentials.username,
-      email: credentials.email,
-      token: 'mock-jwt-token-' + Date.now(),
-    };
-    
-    localStorage.setItem('token', mockAuthUser.token);
-    localStorage.setItem('user', JSON.stringify(mockAuthUser));
-    
-    return {
-      success: true,
-      data: mockAuthUser,
-    };
+    try {
+      const response = await apiService.post<AuthResponse>('/auth/register', credentials);
+      
+      if (response.data.success && response.data.data) {
+        const { user, token } = response.data.data;
+        const authUser: AuthUser = {
+          ...mapUserDataToUser(user),
+          token,
+        };
+        
+        localStorage.setItem('token', token);
+        localStorage.setItem('user', JSON.stringify(authUser));
+        
+        return {
+          success: true,
+          data: authUser,
+        };
+      } else {
+        return {
+          success: false,
+          error: response.data.message || 'Registration failed',
+        };
+      }
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || error.message || 'Registration failed';
+      return {
+        success: false,
+        error: errorMessage,
+      };
+    }
   }
 
   async logout(): Promise<void> {
@@ -47,19 +76,46 @@ export class AuthService {
   }
 
   async getCurrentUser(): Promise<ApiResponse<AuthUser>> {
-    // Mock getCurrentUser - return stored user
-    const storedUser = this.getStoredUser();
-    if (storedUser) {
+    try {
+      const token = this.getStoredToken();
+      if (!token) {
+        return {
+          success: false,
+          error: 'No token found',
+        };
+      }
+
+      const response = await apiService.get<ProfileResponse>('/auth/me');
+      
+      if (response.data.success && response.data.data) {
+        const user = response.data.data;
+        const authUser: AuthUser = {
+          ...mapUserDataToUser(user),
+          token,
+        };
+        
+        // Update stored user data
+        localStorage.setItem('user', JSON.stringify(authUser));
+        
+        return {
+          success: true,
+          data: authUser,
+        };
+      } else {
+        return {
+          success: false,
+          error: response.data.message || 'Failed to get user profile',
+        };
+      }
+    } catch (error: any) {
+      // If token is invalid, clear storage
+      this.logout();
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to get user profile';
       return {
-        success: true,
-        data: storedUser,
+        success: false,
+        error: errorMessage,
       };
     }
-    
-    return {
-      success: false,
-      error: 'No user found',
-    };
   }
 
   getStoredUser(): AuthUser | null {
@@ -76,103 +132,79 @@ export class AuthService {
   }
 
   async updateProfile(data: { username: string; email: string }): Promise<ApiResponse<AuthUser>> {
-    // Mock profile update with validation
-    await new Promise(resolve => setTimeout(resolve, 800)); // Simulate network delay
-    
-    const storedUser = this.getStoredUser();
-    if (!storedUser) {
+    try {
+      const response = await apiService.put<ProfileResponse>('/auth/profile', data);
+      
+      if (response.data.success && response.data.data) {
+        const user = response.data.data;
+        const token = this.getStoredToken();
+        const authUser: AuthUser = {
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          avatar: user.avatar || undefined,
+          isOnline: user.isOnline,
+          lastSeen: new Date(user.lastSeen),
+          token: token || '',
+        };
+        
+        localStorage.setItem('user', JSON.stringify(authUser));
+        
+        return {
+          success: true,
+          data: authUser,
+        };
+      } else {
+        return {
+          success: false,
+          error: response.data.message || 'Profile update failed',
+        };
+      }
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || error.message || 'Profile update failed';
       return {
         success: false,
-        error: 'User not found',
+        error: errorMessage,
       };
     }
-
-    // Basic validation
-    if (!data.username.trim()) {
-      return {
-        success: false,
-        error: 'Username is required',
-      };
-    }
-
-    if (!data.email.trim()) {
-      return {
-        success: false,
-        error: 'Email is required',
-      };
-    }
-
-    // Simple email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(data.email)) {
-      return {
-        success: false,
-        error: 'Please enter a valid email address',
-      };
-    }
-
-    // Username length validation
-    if (data.username.length < 2) {
-      return {
-        success: false,
-        error: 'Username must be at least 2 characters long',
-      };
-    }
-
-    if (data.username.length > 30) {
-      return {
-        success: false,
-        error: 'Username must be less than 30 characters',
-      };
-    }
-
-    const updatedUser: AuthUser = {
-      ...storedUser,
-      username: data.username.trim(),
-      email: data.email.trim().toLowerCase(),
-    };
-    
-    localStorage.setItem('user', JSON.stringify(updatedUser));
-    
-    return {
-      success: true,
-      data: updatedUser,
-    };
   }
 
   async updateAvatar(avatarUrl: string): Promise<ApiResponse<AuthUser>> {
-    // Mock avatar update
-    await new Promise(resolve => setTimeout(resolve, 500)); // Simulate network delay
-    
-    const storedUser = this.getStoredUser();
-    if (!storedUser) {
-      return {
-        success: false,
-        error: 'User not found',
-      };
-    }
-
-    // Basic URL validation
     try {
-      new URL(avatarUrl);
-    } catch {
+      const response = await apiService.put<ProfileResponse>('/auth/profile', { avatar: avatarUrl });
+      
+      if (response.data.success && response.data.data) {
+        const user = response.data.data;
+        const token = this.getStoredToken();
+        const authUser: AuthUser = {
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          avatar: user.avatar || undefined,
+          isOnline: user.isOnline,
+          lastSeen: new Date(user.lastSeen),
+          token: token || '',
+        };
+        
+        localStorage.setItem('user', JSON.stringify(authUser));
+        
+        return {
+          success: true,
+          data: authUser,
+        };
+      } else {
+        return {
+          success: false,
+          error: response.data.message || 'Avatar update failed',
+        };
+      }
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || error.message || 'Avatar update failed';
       return {
         success: false,
-        error: 'Please enter a valid URL',
+        error: errorMessage,
       };
     }
-
-    const updatedUser: AuthUser = {
-      ...storedUser,
-      avatar: avatarUrl,
-    };
-    
-    localStorage.setItem('user', JSON.stringify(updatedUser));
-    
-    return {
-      success: true,
-      data: updatedUser,
-    };
   }
 
   isAuthenticated(): boolean {

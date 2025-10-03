@@ -7,6 +7,16 @@ export interface User {
   lastSeen?: Date;
 }
 
+// Utility function to convert UserData to User
+export const mapUserDataToUser = (userData: UserData): User => ({
+  id: userData.id,
+  username: userData.username,
+  email: userData.email,
+  avatar: userData.avatar || undefined,
+  isOnline: userData.isOnline,
+  lastSeen: new Date(userData.lastSeen),
+});
+
 export interface AuthUser extends User {
   token: string;
 }
@@ -72,6 +82,33 @@ export interface ApiResponse<T = any> {
   data?: T;
   message?: string;
   error?: string;
+}
+
+// API response interfaces - represents raw data from server API
+export interface UserData {
+  id: string;
+  email: string;
+  username: string;
+  avatar: string | null;
+  isOnline: boolean;
+  lastSeen: string; // ISO date string from server
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AuthResponse {
+  success: boolean;
+  message: string;
+  data: {
+    user: UserData;
+    token: string;
+  };
+}
+
+export interface ProfileResponse {
+  success: boolean;
+  message: string;
+  data: UserData;
 }
 
 export interface PaginatedResponse<T> extends ApiResponse<T[]> {
