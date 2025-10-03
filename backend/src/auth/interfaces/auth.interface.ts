@@ -10,7 +10,7 @@ export interface AuthResponse {
       id: string;
       email: string;
       username: string;
-      avatar?: string;
+      avatar: string | null;
       isOnline: boolean;
       lastSeen: Date;
       createdAt: Date;
@@ -50,7 +50,7 @@ export interface UserProfileResponse {
     id: string;
     email: string;
     username: string;
-    avatar?: string;
+    avatar: string | null;
     isOnline: boolean;
     lastSeen: Date;
     createdAt: Date;

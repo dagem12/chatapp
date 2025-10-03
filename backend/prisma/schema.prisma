@@ -21,7 +21,6 @@ model User {
 
   // Relations
   sentMessages     Message[] @relation("MessageSender")
-  receivedMessages Message[] @relation("MessageReceiver")
   conversations    ConversationParticipant[]
 
   @@map("users")

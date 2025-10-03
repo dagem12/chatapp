@@ -38,7 +38,7 @@ export class HealthController {
   @ApiResponse({ status: 500, description: 'Database connection failed' })
   async checkDatabase() {
     try {
-      const result = await this.prisma.$queryRaw`SELECT NOW() as current_time`;
+      const result = await this.prisma.$queryRaw<[{ current_time: Date }]>`SELECT NOW() as current_time`;
       return {
         status: 'connected',
         timestamp: new Date().toISOString(),
