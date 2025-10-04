@@ -23,10 +23,9 @@ export class CreateMessageDto {
 
   @ApiProperty({ 
     description: 'Conversation ID where the message will be sent', 
-    example: 'clx1234567890abcdef',
+    example: 'cmgb1tyby0009u89ogjjmlkoo',
   })
   @IsString({ message: 'Conversation ID must be a string' })
-  @IsUUID('4', { message: 'Conversation ID must be a valid UUID' })
   conversationId: string;
 
   @ApiProperty({ 
@@ -56,12 +55,11 @@ export class UpdateMessageDto {
 export class MarkMessagesAsReadDto {
   @ApiProperty({ 
     description: 'Array of message IDs to mark as read', 
-    example: ['clx1234567890abcdef', 'clx0987654321fedcba'],
+    example: ['cmgb1tyby0009u89ogjjmlkoo', 'cmgb1tyby0009u89ogjjmlko1'],
     type: [String],
   })
   @IsArray({ message: 'Message IDs must be an array' })
   @IsString({ each: true, message: 'Each message ID must be a string' })
-  @IsUUID('4', { each: true, message: 'Each message ID must be a valid UUID' })
   messageIds: string[];
 }
 
@@ -89,24 +87,22 @@ export class GetMessagesQueryDto {
 
   @ApiProperty({ 
     description: 'Message ID to start pagination from (for cursor-based pagination)', 
-    example: 'clx1234567890abcdef',
+    example: 'cmgb1tyby0009u89ogjjmlkoo',
     required: false,
   })
   @IsOptional()
   @IsString({ message: 'Cursor must be a string' })
-  @IsUUID('4', { message: 'Cursor must be a valid UUID' })
   cursor?: string;
 }
 
 export class CreateConversationDto {
   @ApiProperty({ 
     description: 'Array of user IDs to include in the conversation', 
-    example: ['clx1234567890abcdef', 'clx0987654321fedcba'],
+    example: ['cmgb1tyby0009u89ogjjmlkoo', 'cmgb1tyby0009u89ogjjmlko1'],
     type: [String],
   })
   @IsArray({ message: 'User IDs must be an array' })
   @IsString({ each: true, message: 'Each user ID must be a string' })
-  @IsUUID('4', { each: true, message: 'Each user ID must be a valid UUID' })
   participantIds: string[];
 }
 
@@ -135,7 +131,7 @@ export class GetConversationsQueryDto {
 
 // Response DTOs for Swagger documentation
 export class SenderResponseDto {
-  @ApiProperty({ description: 'Sender ID', example: 'clx1234567890abcdef' })
+  @ApiProperty({ description: 'Sender ID', example: 'cmgb1tyby0009u89ogjjmlkoo' })
   id: string;
 
   @ApiProperty({ description: 'Sender username', example: 'john_doe' })
@@ -146,7 +142,7 @@ export class SenderResponseDto {
 }
 
 export class MessageResponseDto {
-  @ApiProperty({ description: 'Message ID', example: 'clx1234567890abcdef' })
+  @ApiProperty({ description: 'Message ID', example: 'cmgb1tyby0009u89ogjjmlkoo' })
   id: string;
 
   @ApiProperty({ description: 'Message content', example: 'Hello, how are you?' })
@@ -173,12 +169,12 @@ export class MessageResponseDto {
   @ApiProperty({ description: 'Message sender information', type: SenderResponseDto })
   sender: SenderResponseDto;
 
-  @ApiProperty({ description: 'Conversation ID', example: 'clx1234567890abcdef' })
+  @ApiProperty({ description: 'Conversation ID', example: 'cmgb1tyby0009u89ogjjmlkoo' })
   conversationId: string;
 }
 
 export class ParticipantResponseDto {
-  @ApiProperty({ description: 'Participant ID', example: 'clx1234567890abcdef' })
+  @ApiProperty({ description: 'Participant ID', example: 'cmgb1tyby0009u89ogjjmlkoo' })
   id: string;
 
   @ApiProperty({ description: 'Participant username', example: 'john_doe' })
@@ -201,7 +197,7 @@ export class ParticipantResponseDto {
 }
 
 export class ConversationResponseDto {
-  @ApiProperty({ description: 'Conversation ID', example: 'clx1234567890abcdef' })
+  @ApiProperty({ description: 'Conversation ID', example: 'cmgb1tyby0009u89ogjjmlkoo' })
   id: string;
 
   @ApiProperty({ description: 'Conversation creation timestamp', example: '2024-01-01T12:00:00Z' })
@@ -221,7 +217,7 @@ export class ConversationResponseDto {
 }
 
 export class OtherParticipantResponseDto {
-  @ApiProperty({ description: 'Participant ID', example: 'clx1234567890abcdef' })
+  @ApiProperty({ description: 'Participant ID', example: 'cmgb1tyby0009u89ogjjmlkoo' })
   id: string;
 
   @ApiProperty({ description: 'Participant username', example: 'john_doe' })
@@ -238,7 +234,7 @@ export class OtherParticipantResponseDto {
 }
 
 export class LastMessageResponseDto {
-  @ApiProperty({ description: 'Message ID', example: 'clx1234567890abcdef' })
+  @ApiProperty({ description: 'Message ID', example: 'cmgb1tyby0009u89ogjjmlkoo' })
   id: string;
 
   @ApiProperty({ description: 'Message content', example: 'Hello, how are you?' })
@@ -250,12 +246,12 @@ export class LastMessageResponseDto {
   @ApiProperty({ description: 'Message creation timestamp', example: '2024-01-01T12:00:00Z' })
   createdAt: Date;
 
-  @ApiProperty({ description: 'Sender ID', example: 'clx1234567890abcdef' })
+  @ApiProperty({ description: 'Sender ID', example: 'cmgb1tyby0009u89ogjjmlkoo' })
   senderId: string;
 }
 
 export class ConversationPreviewResponseDto {
-  @ApiProperty({ description: 'Conversation ID', example: 'clx1234567890abcdef' })
+  @ApiProperty({ description: 'Conversation ID', example: 'cmgb1tyby0009u89ogjjmlkoo' })
   id: string;
 
   @ApiProperty({ description: 'Other participant information', type: OtherParticipantResponseDto })
@@ -290,7 +286,7 @@ export class PaginationResponseDto {
   @ApiProperty({ description: 'Whether there is a previous page', example: false })
   hasPrevious: boolean;
 
-  @ApiProperty({ description: 'Cursor for next page (cursor-based pagination)', example: 'clx1234567890abcdef', required: false })
+  @ApiProperty({ description: 'Cursor for next page (cursor-based pagination)', example: 'cmgb1tyby0009u89ogjjmlkoo', required: false })
   cursor?: string;
 }
 
@@ -353,7 +349,7 @@ export class MessagesMarkedAsReadResponseDto {
 
   @ApiProperty({ 
     description: 'Mark as read result data', 
-    example: { markedCount: 5, messageIds: ['clx1234567890abcdef', 'clx0987654321fedcba'] }
+    example: { markedCount: 5, messageIds: ['cmgb1tyby0009u89ogjjmlkoo', 'cmgb1tyby0009u89ogjjmlko1'] }
   })
   data: {
     markedCount: number;

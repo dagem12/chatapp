@@ -40,6 +40,16 @@ export interface Message {
   conversationId: string;
   timestamp: Date;
   isRead?: boolean;
+  messageType?: string;
+  isEdited?: boolean;
+  isDeleted?: boolean;
+  createdAt?: Date;
+  updatedAt?: Date;
+  sender?: {
+    id: string;
+    username: string;
+    avatar?: string;
+  };
 }
 
 export interface Conversation {
@@ -84,14 +94,14 @@ export interface ApiResponse<T = any> {
   error?: string;
 }
 
-// API response interfaces - represents raw data from server API
+
 export interface UserData {
   id: string;
   email: string;
   username: string;
   avatar: string | null;
   isOnline: boolean;
-  lastSeen: string; // ISO date string from server
+  lastSeen: string; 
   createdAt: string;
   updatedAt: string;
 }

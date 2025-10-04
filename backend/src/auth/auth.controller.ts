@@ -8,6 +8,7 @@ import {
   Request,
   HttpCode,
   HttpStatus,
+  Logger,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -24,6 +25,8 @@ import { AuthResponse, UserProfileResponse } from './interfaces/auth.interface';
 @ApiTags('Authentication')
 @Controller('auth')
 export class AuthController {
+  private readonly logger = new Logger(AuthController.name);
+
   constructor(private readonly authService: AuthService) {}
 
   @Public()
@@ -35,7 +38,15 @@ export class AuthController {
   @ApiResponse({ status: 400, description: 'Bad request - validation errors' })
   @ApiResponse({ status: 409, description: 'Conflict - email or username already exists' })
   async register(@Body() registerDto: RegisterDto): Promise<AuthResponse> {
-    return this.authService.register(registerDto);
+    this.logger.log(`User registration attempt: ${registerDto.email}`);
+    try {
+      const result = await this.authService.register(registerDto);
+      this.logger.log(`User registered successfully: ${registerDto.email}`);
+      return result;
+    } catch (error) {
+      this.logger.error(`User registration failed: ${registerDto.email}`, error.stack);
+      throw error;
+    }
   }
 
   @Public()
@@ -46,7 +57,15 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'Login successful' })
   @ApiResponse({ status: 401, description: 'Unauthorized - invalid credentials' })
   async login(@Body() loginDto: LoginDto): Promise<AuthResponse> {
-    return this.authService.login(loginDto);
+    this.logger.log(`User login attempt: ${loginDto.email}`);
+    try {
+      const result = await this.authService.login(loginDto);
+      this.logger.log(`User logged in successfully: ${loginDto.email}`);
+      return result;
+    } catch (error) {
+      this.logger.warn(`User login failed: ${loginDto.email}`, error.stack);
+      throw error;
+    }
   }
 
   @UseGuards(JwtAuthGuard)
@@ -56,7 +75,15 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'Profile retrieved successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized - invalid or missing token' })
   async getProfile(@Request() req: any): Promise<UserProfileResponse> {
-    return this.authService.getProfile(req.user.id);
+    this.logger.log(`Profile request for user: ${req.user.id}`);
+    try {
+      const result = await this.authService.getProfile(req.user.id);
+      this.logger.log(`Profile retrieved successfully for user: ${req.user.id}`);
+      return result;
+    } catch (error) {
+      this.logger.error(`Profile retrieval failed for user: ${req.user.id}`, error.stack);
+      throw error;
+    }
   }
 
   @UseGuards(JwtAuthGuard)
@@ -72,7 +99,15 @@ export class AuthController {
     @Request() req: any,
     @Body() updateProfileDto: UpdateProfileDto,
   ): Promise<UserProfileResponse> {
-    return this.authService.updateProfile(req.user.id, updateProfileDto);
+    this.logger.log(`Profile update request for user: ${req.user.id}`);
+    try {
+      const result = await this.authService.updateProfile(req.user.id, updateProfileDto);
+      this.logger.log(`Profile updated successfully for user: ${req.user.id}`);
+      return result;
+    } catch (error) {
+      this.logger.error(`Profile update failed for user: ${req.user.id}`, error.stack);
+      throw error;
+    }
   }
 
   @UseGuards(JwtAuthGuard)
@@ -87,7 +122,15 @@ export class AuthController {
     @Request() req: any,
     @Body() changePasswordDto: ChangePasswordDto,
   ): Promise<{ success: boolean; message: string }> {
-    return this.authService.changePassword(req.user.id, changePasswordDto);
+    this.logger.log(`Password change request for user: ${req.user.id}`);
+    try {
+      const result = await this.authService.changePassword(req.user.id, changePasswordDto);
+      this.logger.log(`Password changed successfully for user: ${req.user.id}`);
+      return result;
+    } catch (error) {
+      this.logger.error(`Password change failed for user: ${req.user.id}`, error.stack);
+      throw error;
+    }
   }
 
   @UseGuards(JwtAuthGuard)
@@ -109,10 +152,17 @@ export class AuthController {
     @Request() req: any,
     @Body() body: { isOnline: boolean },
   ): Promise<{ success: boolean; message: string }> {
-    await this.authService.updateOnlineStatus(req.user.id, body.isOnline);
-    return {
-      success: true,
-      message: 'Online status updated successfully',
-    };
+    this.logger.log(`Online status update request for user: ${req.user.id}, status: ${body.isOnline}`);
+    try {
+      await this.authService.updateOnlineStatus(req.user.id, body.isOnline);
+      this.logger.log(`Online status updated successfully for user: ${req.user.id}, status: ${body.isOnline}`);
+      return {
+        success: true,
+        message: 'Online status updated successfully',
+      };
+    } catch (error) {
+      this.logger.error(`Online status update failed for user: ${req.user.id}`, error.stack);
+      throw error;
+    }
   }
 }

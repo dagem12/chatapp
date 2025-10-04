@@ -3,7 +3,8 @@ import {
   NotFoundException, 
   ForbiddenException, 
   BadRequestException,
-  ConflictException 
+  ConflictException,
+  Logger 
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { 
@@ -27,10 +28,14 @@ import {
 
 @Injectable()
 export class MessagesService {
+  private readonly logger = new Logger(MessagesService.name);
+
   constructor(private prisma: PrismaService) {}
 
   async createMessage(userId: string, createMessageDto: CreateMessageDto): Promise<MessageCreatedResponse> {
     const { content, conversationId, messageType } = createMessageDto;
+
+    this.logger.log(`Message creation request from user: ${userId} to conversation: ${conversationId}`);
 
     // Check if user is a participant in the conversation
     const participant = await this.prisma.conversationParticipant.findFirst({
@@ -41,6 +46,7 @@ export class MessagesService {
     });
 
     if (!participant) {
+      this.logger.warn(`Message creation failed - user not participant: ${userId} in conversation: ${conversationId}`);
       throw new ForbiddenException('You are not a participant in this conversation');
     }
 
@@ -68,6 +74,8 @@ export class MessagesService {
       where: { id: conversationId },
       data: { updatedAt: new Date() },
     });
+
+    this.logger.log(`Message created successfully: ${message.id} by user: ${userId} in conversation: ${conversationId}`);
 
     return {
       success: true,

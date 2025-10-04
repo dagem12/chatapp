@@ -21,8 +21,32 @@ export class ChatService {
   // Get all conversations for the current user
   async getConversations(page: number = 1, limit: number = 10): Promise<PaginatedResponse<ConversationPreview>> {
     try {
-      const response = await api.get<PaginatedResponse<ConversationPreview>>(`/conversations?page=${page}&limit=${limit}`);
-      return response.data;
+      const response = await api.get<PaginatedResponse<any>>(`/conversations?page=${page}&limit=${limit}`);
+      
+      // Convert backend response to frontend format
+      const convertedData = (response.data.data || []).map((conv: any) => ({
+        id: conv.id,
+        otherParticipant: {
+          id: conv.otherParticipant.id,
+          username: conv.otherParticipant.username,
+          email: '', // Not provided by backend
+          avatar: conv.otherParticipant.avatar,
+          isOnline: conv.otherParticipant.isOnline,
+          lastSeen: new Date(conv.otherParticipant.lastSeen),
+        },
+        lastMessage: conv.lastMessage ? {
+          content: conv.lastMessage.content,
+          timestamp: new Date(conv.lastMessage.createdAt),
+          senderId: conv.lastMessage.senderId,
+        } : undefined,
+        unreadCount: conv.unreadCount,
+      }));
+      
+      return {
+        success: response.data.success,
+        data: convertedData,
+        pagination: response.data.pagination,
+      };
     } catch (error) {
       console.error('Error fetching conversations:', error);
       // Fallback to mock data in development
@@ -43,8 +67,38 @@ export class ChatService {
   // Get a specific conversation with messages
   async getConversation(conversationId: string): Promise<ApiResponse<Conversation>> {
     try {
-      const response = await api.get<ApiResponse<Conversation>>(`/conversations/${conversationId}`);
-      return response.data;
+      const response = await api.get<ApiResponse<any>>(`/conversations/${conversationId}`);
+      
+      // Convert backend response to frontend format
+      const backendConversation = response.data.data;
+      const convertedConversation: Conversation = {
+        id: backendConversation.id,
+        participants: backendConversation.participants.map((p: any) => ({
+          id: p.id,
+          username: p.username,
+          email: '', // Not provided by backend
+          avatar: p.avatar,
+          isOnline: p.isOnline,
+          lastSeen: new Date(p.lastSeen),
+        })),
+        unreadCount: backendConversation.unreadCount,
+        updatedAt: new Date(backendConversation.updatedAt),
+        createdAt: new Date(backendConversation.createdAt),
+        lastMessage: backendConversation.lastMessage ? {
+          id: backendConversation.lastMessage.id,
+          content: backendConversation.lastMessage.content,
+          senderId: backendConversation.lastMessage.senderId,
+          conversationId: conversationId,
+          timestamp: new Date(backendConversation.lastMessage.createdAt),
+          isRead: false, // Default value
+          messageType: backendConversation.lastMessage.messageType,
+        } : undefined,
+      };
+      
+      return {
+        success: response.data.success,
+        data: convertedConversation,
+      };
     } catch (error) {
       console.error('Error fetching conversation:', error);
       // Fallback to mock data in development
@@ -80,8 +134,29 @@ export class ChatService {
         params.append('cursor', cursor);
       }
       
-      const response = await api.get<PaginatedResponse<Message>>(`/messages/conversation/${conversationId}?${params}`);
-      return response.data;
+      const response = await api.get<PaginatedResponse<any>>(`/messages/conversation/${conversationId}?${params}`);
+      
+      // Convert backend response to frontend format
+      const convertedData = (response.data.data || []).map((msg: any) => ({
+        id: msg.id,
+        content: msg.content,
+        senderId: msg.sender.id,
+        conversationId: msg.conversationId,
+        timestamp: new Date(msg.createdAt),
+        isRead: msg.isRead,
+        messageType: msg.messageType,
+        isEdited: msg.isEdited,
+        isDeleted: msg.isDeleted,
+        createdAt: new Date(msg.createdAt),
+        updatedAt: new Date(msg.updatedAt),
+        sender: msg.sender,
+      }));
+      
+      return {
+        success: response.data.success,
+        data: convertedData,
+        pagination: response.data.pagination,
+      };
     } catch (error) {
       console.error('Error fetching messages:', error);
       // Fallback to mock data in development
@@ -150,12 +225,33 @@ export class ChatService {
   // Send a message (also handled via socket, but this is for backup/sync)
   async sendMessage(conversationId: string, content: string, messageType: string = 'text'): Promise<ApiResponse<Message>> {
     try {
-      const response = await api.post<ApiResponse<Message>>('/messages', {
+      const response = await api.post<ApiResponse<any>>('/messages', {
         content,
         conversationId,
         messageType,
       });
-      return response.data;
+      
+      // Convert backend response to frontend format
+      const backendMessage = response.data.data;
+      const convertedMessage: Message = {
+        id: backendMessage.id,
+        content: backendMessage.content,
+        senderId: backendMessage.sender.id,
+        conversationId: backendMessage.conversationId,
+        timestamp: new Date(backendMessage.createdAt),
+        isRead: backendMessage.isRead,
+        messageType: backendMessage.messageType,
+        isEdited: backendMessage.isEdited,
+        isDeleted: backendMessage.isDeleted,
+        createdAt: new Date(backendMessage.createdAt),
+        updatedAt: new Date(backendMessage.updatedAt),
+        sender: backendMessage.sender,
+      };
+      
+      return {
+        success: response.data.success,
+        data: convertedMessage,
+      };
     } catch (error) {
       console.error('Error sending message:', error);
       // Fallback to mock data in development

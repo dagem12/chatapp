@@ -15,7 +15,9 @@ interface MessageListProps {
 
 const MessageList: React.FC<MessageListProps> = ({ messages, currentUserId }) => {
   const formatTimestamp = (timestamp: Date) => {
+    if (!timestamp) return 'Invalid Date';
     const messageDate = new Date(timestamp);
+    if (isNaN(messageDate.getTime())) return 'Invalid Date';
     return messageDate.toLocaleTimeString([], { 
       hour: '2-digit', 
       minute: '2-digit' 
@@ -23,7 +25,10 @@ const MessageList: React.FC<MessageListProps> = ({ messages, currentUserId }) =>
   };
 
   const formatDateSeparator = (timestamp: Date) => {
+    if (!timestamp) return 'Invalid Date';
     const messageDate = new Date(timestamp);
+    if (isNaN(messageDate.getTime())) return 'Invalid Date';
+    
     const today = new Date();
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
@@ -44,11 +49,14 @@ const MessageList: React.FC<MessageListProps> = ({ messages, currentUserId }) =>
 
   const shouldShowDateSeparator = (currentMessage: Message, previousMessage?: Message) => {
     if (!previousMessage) return true;
+    if (!currentMessage.timestamp || !previousMessage.timestamp) return true;
     
-    const currentDate = new Date(currentMessage.timestamp).toDateString();
-    const previousDate = new Date(previousMessage.timestamp).toDateString();
+    const currentDate = new Date(currentMessage.timestamp);
+    const previousDate = new Date(previousMessage.timestamp);
     
-    return currentDate !== previousDate;
+    if (isNaN(currentDate.getTime()) || isNaN(previousDate.getTime())) return true;
+    
+    return currentDate.toDateString() !== previousDate.toDateString();
   };
 
   const shouldShowAvatar = (currentMessage: Message, nextMessage?: Message) => {
