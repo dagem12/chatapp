@@ -6,7 +6,7 @@ import {
   Avatar,
   Chip,
 } from '@mui/material';
-import type { Message } from '../../types';
+import type { Message, MessageStatus } from '../../types';
 
 interface MessageListProps {
   messages: Message[];
@@ -14,45 +14,112 @@ interface MessageListProps {
 }
 
 const MessageList: React.FC<MessageListProps> = ({ messages, currentUserId }) => {
-  const formatTimestamp = (timestamp: Date) => {
-    if (!timestamp) return 'Invalid Date';
-    const messageDate = new Date(timestamp);
-    if (isNaN(messageDate.getTime())) return 'Invalid Date';
-    return messageDate.toLocaleTimeString([], { 
-      hour: '2-digit', 
-      minute: '2-digit' 
-    });
+  const getStatusIcon = (status: MessageStatus | string) => {
+    switch (status) {
+      case 'pending':
+        return '⏳';
+      case 'sent':
+        return '✓';
+      case 'delivered':
+        return '✓✓';
+      case 'read':
+        return '✓✓';
+      case 'failed':
+        return '❌';
+      default:
+        return '✓';
+    }
   };
 
-  const formatDateSeparator = (timestamp: Date) => {
+  const getStatusColor = (status: MessageStatus | string) => {
+    switch (status) {
+      case 'pending':
+        return 'text.secondary';
+      case 'sent':
+        return 'text.secondary';
+      case 'delivered':
+        return 'text.secondary';
+      case 'read':
+        return 'primary.main';
+      case 'failed':
+        return 'error.main';
+      default:
+        return 'text.secondary';
+    }
+  };
+
+  const formatTimestamp = (timestamp: Date | string) => {
     if (!timestamp) return 'Invalid Date';
     const messageDate = new Date(timestamp);
     if (isNaN(messageDate.getTime())) return 'Invalid Date';
     
-    const today = new Date();
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const messageDay = new Date(messageDate.getFullYear(), messageDate.getMonth(), messageDate.getDate());
+    
+    // If message is from today, show time only
+    if (messageDay.getTime() === today.getTime()) {
+      return messageDate.toLocaleTimeString([], { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        hour12: true
+      });
+    }
+    
+    // If message is from yesterday or older, show date and time
+    return messageDate.toLocaleString([], { 
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit', 
+      minute: '2-digit',
+      hour12: true
+    });
+  };
+
+  const formatDateSeparator = (timestamp: Date | string) => {
+    if (!timestamp) return 'Invalid Date';
+    const messageDate = new Date(timestamp);
+    if (isNaN(messageDate.getTime())) return 'Invalid Date';
+    
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
+    const messageDay = new Date(messageDate.getFullYear(), messageDate.getMonth(), messageDate.getDate());
 
-    if (messageDate.toDateString() === today.toDateString()) {
+    if (messageDay.getTime() === today.getTime()) {
       return 'Today';
-    } else if (messageDate.toDateString() === yesterday.toDateString()) {
+    } else if (messageDay.getTime() === yesterday.getTime()) {
       return 'Yesterday';
     } else {
-      return messageDate.toLocaleDateString([], { 
-        weekday: 'long', 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
-      });
+      // Check if it's within the current week
+      const weekAgo = new Date(today);
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      
+      if (messageDay.getTime() > weekAgo.getTime()) {
+        return messageDate.toLocaleDateString([], { 
+          weekday: 'long'
+        });
+      } else {
+        return messageDate.toLocaleDateString([], { 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric' 
+        });
+      }
     }
   };
 
   const shouldShowDateSeparator = (currentMessage: Message, previousMessage?: Message) => {
     if (!previousMessage) return true;
-    if (!currentMessage.timestamp || !previousMessage.timestamp) return true;
     
-    const currentDate = new Date(currentMessage.timestamp);
-    const previousDate = new Date(previousMessage.timestamp);
+    const currentTimestamp = currentMessage.timestamp || currentMessage.createdAt;
+    const previousTimestamp = previousMessage.timestamp || previousMessage.createdAt;
+    
+    if (!currentTimestamp || !previousTimestamp) return true;
+    
+    const currentDate = new Date(currentTimestamp);
+    const previousDate = new Date(previousTimestamp);
     
     if (isNaN(currentDate.getTime()) || isNaN(previousDate.getTime())) return true;
     
@@ -62,14 +129,21 @@ const MessageList: React.FC<MessageListProps> = ({ messages, currentUserId }) =>
   const shouldShowAvatar = (currentMessage: Message, nextMessage?: Message) => {
     if (!nextMessage) return true;
     
-    return currentMessage.senderId !== nextMessage.senderId;
+    const currentSenderId = currentMessage.senderId || currentMessage.sender?.id;
+    const nextSenderId = nextMessage.senderId || nextMessage.sender?.id;
+    
+    return currentSenderId !== nextSenderId;
   };
 
   const shouldShowSenderName = (currentMessage: Message, previousMessage?: Message) => {
     if (!previousMessage) return true;
-    if (currentMessage.senderId === currentUserId) return false;
     
-    return currentMessage.senderId !== previousMessage.senderId;
+    const currentSenderId = currentMessage.senderId || currentMessage.sender?.id;
+    const previousSenderId = previousMessage.senderId || previousMessage.sender?.id;
+    
+    if (currentSenderId === currentUserId) return false;
+    
+    return currentSenderId !== previousSenderId;
   };
 
   if (messages.length === 0) {
@@ -93,7 +167,8 @@ const MessageList: React.FC<MessageListProps> = ({ messages, currentUserId }) =>
   return (
     <Box sx={{ p: 2 }}>
       {messages.map((message, index) => {
-        const isOwnMessage = message.senderId === currentUserId;
+        const messageSenderId = message.senderId || message.sender?.id;
+        const isOwnMessage = messageSenderId === currentUserId;
         const previousMessage = index > 0 ? messages[index - 1] : undefined;
         const nextMessage = index < messages.length - 1 ? messages[index + 1] : undefined;
         
@@ -107,7 +182,7 @@ const MessageList: React.FC<MessageListProps> = ({ messages, currentUserId }) =>
             {showDateSeparator && (
               <Box sx={{ display: 'flex', justifyContent: 'center', my: 2 }}>
                 <Chip
-                  label={formatDateSeparator(message.timestamp)}
+                  label={formatDateSeparator(message.timestamp || message.createdAt)}
                   size="small"
                   variant="outlined"
                   sx={{ backgroundColor: 'background.paper' }}
@@ -134,8 +209,8 @@ const MessageList: React.FC<MessageListProps> = ({ messages, currentUserId }) =>
                     visibility: showAvatar ? 'visible' : 'hidden',
                   }}
                 >
-                  {/* This would typically show the sender's avatar */}
-                  {message.senderId.charAt(0).toUpperCase()}
+                  {/* Show the sender's username initial */}
+                  {(message.sender?.username || 'U').charAt(0).toUpperCase()}
                 </Avatar>
               )}
 
@@ -155,7 +230,7 @@ const MessageList: React.FC<MessageListProps> = ({ messages, currentUserId }) =>
                     sx={{ mb: 0.5, ml: 1 }}
                   >
                     {/* This would typically show the sender's name */}
-                    User {message.senderId.substring(0, 8)}
+                    {message.sender?.username || `User ${(message.senderId || message.sender?.id || 'Unknown').substring(0, 8)}`}
                   </Typography>
                 )}
 
@@ -187,15 +262,17 @@ const MessageList: React.FC<MessageListProps> = ({ messages, currentUserId }) =>
                     fontSize: '0.7rem',
                   }}
                 >
-                  {formatTimestamp(message.timestamp)}
-                  {isOwnMessage && message.isRead && (
+                  {formatTimestamp(message.timestamp || message.createdAt)}
+                  {isOwnMessage && (
                     <Typography
                       component="span"
                       variant="caption"
-                      color="primary.main"
-                      sx={{ ml: 0.5 }}
+                      sx={{ 
+                        ml: 0.5,
+                        color: getStatusColor(message.status || (message.isRead ? 'read' : 'sent'))
+                      }}
                     >
-                      ✓✓
+                      {getStatusIcon(message.status || (message.isRead ? 'read' : 'sent'))}
                     </Typography>
                   )}
                 </Typography>

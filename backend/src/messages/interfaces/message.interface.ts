@@ -9,6 +9,8 @@ export interface MessageResponse {
   isDeleted: boolean;
   createdAt: Date;
   updatedAt: Date;
+  senderId: string; // Add senderId for frontend compatibility
+  status: string; // Add status field for frontend
   sender: {
     id: string;
     username: string;

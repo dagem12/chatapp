@@ -6,15 +6,7 @@ import type {
   ApiResponse,
   PaginatedResponse 
 } from '../types';
-import { 
-  mockConversations, 
-  mockFullConversations, 
-  mockMessages, 
-  mockUsers, 
-  generateMessageId, 
-  generateConversationId,
-  currentUser 
-} from '../utils/mockData';
+// Removed mock data imports - using only real API data
 import { apiService as api } from './api';
 
 export class ChatService {
@@ -49,16 +41,15 @@ export class ChatService {
       };
     } catch (error) {
       console.error('Error fetching conversations:', error);
-      // Fallback to mock data in development
-      await new Promise(resolve => setTimeout(resolve, 500));
       return {
-        success: true,
-        data: [...mockConversations],
+        success: false,
+        error: 'Failed to fetch conversations',
+        data: [],
         pagination: {
           page: 1,
           limit: 10,
-          total: mockConversations.length,
-          totalPages: 1,
+          total: 0,
+          totalPages: 0,
         },
       };
     }
@@ -125,19 +116,9 @@ export class ChatService {
       };
     } catch (error) {
       console.error('Error fetching conversation:', error);
-      // Fallback to mock data in development
-      await new Promise(resolve => setTimeout(resolve, 300));
-      const conversation = mockFullConversations[conversationId];
-      if (conversation) {
-        return {
-          success: true,
-          data: conversation,
-        };
-      }
-      
       return {
         success: false,
-        error: 'Conversation not found',
+        error: 'Failed to fetch conversation',
       };
     }
   }
@@ -183,17 +164,15 @@ export class ChatService {
       };
     } catch (error) {
       console.error('Error fetching messages:', error);
-      // Fallback to mock data in development
-      await new Promise(resolve => setTimeout(resolve, 400));
-      const messages = mockMessages[conversationId] || [];
       return {
-        success: true,
-        data: [...messages],
+        success: false,
+        error: 'Failed to fetch messages',
+        data: [],
         pagination: {
           page: 1,
           limit: 20,
-          total: messages.length,
-          totalPages: 1,
+          total: 0,
+          totalPages: 0,
         },
       };
     }
@@ -208,40 +187,9 @@ export class ChatService {
       return response.data;
     } catch (error) {
       console.error('Error creating conversation:', error);
-      // Fallback to mock data in development
-      await new Promise(resolve => setTimeout(resolve, 600));
-      const otherParticipant = mockUsers.find(user => participantIds.includes(user.id));
-      if (!otherParticipant) {
-        return {
-          success: false,
-          error: 'User not found',
-        };
-      }
-      
-      const newConversationId = generateConversationId();
-      const newConversation: Conversation = {
-        id: newConversationId,
-        participants: [currentUser, otherParticipant],
-        unreadCount: 0,
-        updatedAt: new Date(),
-        createdAt: new Date(),
-      };
-      
-      // Add to mock data
-      mockFullConversations[newConversationId] = newConversation;
-      mockMessages[newConversationId] = [];
-      
-      // Add to conversations list
-      const newConversationPreview: ConversationPreview = {
-        id: newConversationId,
-        otherParticipant,
-        unreadCount: 0,
-      };
-      mockConversations.unshift(newConversationPreview);
-      
       return {
-        success: true,
-        data: newConversation,
+        success: false,
+        error: 'Failed to create conversation',
       };
     }
   }
@@ -278,26 +226,9 @@ export class ChatService {
       };
     } catch (error) {
       console.error('Error sending message:', error);
-      // Fallback to mock data in development
-      await new Promise(resolve => setTimeout(resolve, 200));
-      const newMessage: Message = {
-        id: generateMessageId(),
-        content,
-        senderId: currentUser.id,
-        conversationId,
-        timestamp: new Date(),
-        isRead: false,
-      };
-      
-      // Add to mock messages
-      if (!mockMessages[conversationId]) {
-        mockMessages[conversationId] = [];
-      }
-      mockMessages[conversationId].push(newMessage);
-      
       return {
-        success: true,
-        data: newMessage,
+        success: false,
+        error: 'Failed to send message',
       };
     }
   }
@@ -311,67 +242,67 @@ export class ChatService {
       return response.data;
     } catch (error) {
       console.error('Error marking messages as read:', error);
-      // Fallback to mock data in development
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      // Update mock messages
-      Object.values(mockMessages).forEach(messages => {
-        messages.forEach(message => {
-          if (messageIds.includes(message.id)) {
-            message.isRead = true;
-          }
-        });
-      });
-      
       return {
-        success: true,
+        success: false,
+        error: 'Failed to mark messages as read',
       };
     }
   }
 
   // Search for users to start new conversations
   async searchUsers(query: string): Promise<ApiResponse<User[]>> {
-    await new Promise(resolve => setTimeout(resolve, 300)); // Simulate network delay
-    
-    const filteredUsers = mockUsers.filter(user => 
-      user.username.toLowerCase().includes(query.toLowerCase()) ||
-      user.email.toLowerCase().includes(query.toLowerCase())
-    );
-    
-    return {
-      success: true,
-      data: filteredUsers,
-    };
+    try {
+      const response = await api.get<ApiResponse<User[]>>(`/users/search?q=${encodeURIComponent(query)}`);
+      
+      return {
+        success: response.data.success,
+        data: response.data.data || [],
+      };
+    } catch (error) {
+      console.error('Error searching users:', error);
+      return {
+        success: false,
+        error: 'Failed to search users',
+        data: [],
+      };
+    }
   }
 
   // Get user profile
   async getUserProfile(userId: string): Promise<ApiResponse<User>> {
-    await new Promise(resolve => setTimeout(resolve, 200)); // Simulate network delay
-    
-    const user = mockUsers.find(u => u.id === userId);
-    if (user) {
+    try {
+      const response = await api.get<ApiResponse<User>>(`/users/${userId}`);
+      
       return {
-        success: true,
-        data: user,
+        success: response.data.success,
+        data: response.data.data,
+      };
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+      return {
+        success: false,
+        error: 'Failed to fetch user profile',
       };
     }
-    
-    return {
-      success: false,
-      error: 'User not found',
-    };
   }
 
   // Update user online status
   async updateOnlineStatus(isOnline: boolean): Promise<ApiResponse<void>> {
-    await new Promise(resolve => setTimeout(resolve, 100)); // Simulate network delay
-    
-    // Update current user status in mock data
-    currentUser.isOnline = isOnline;
-    
-    return {
-      success: true,
-    };
+    try {
+      const response = await api.put<ApiResponse<void>>('/users/online-status', {
+        isOnline,
+      });
+      
+      return {
+        success: response.data.success,
+      };
+    } catch (error) {
+      console.error('Error updating online status:', error);
+      return {
+        success: false,
+        error: 'Failed to update online status',
+      };
+    }
   }
 
   // Edit a message

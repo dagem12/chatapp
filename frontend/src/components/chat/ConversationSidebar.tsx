@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Box,
   TextField,
@@ -26,6 +26,7 @@ import {
   PersonAdd,
 } from '@mui/icons-material';
 import { useChat } from '../../hooks/useChat';
+import { OnlineStatus } from '../common/OnlineStatus';
 import type { User } from '../../types';
 
 interface ConversationSidebarProps {
@@ -41,7 +42,10 @@ const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
     selectConversation,
     searchUsers,
     createConversation,
+    loadMoreConversations,
     isLoading,
+    isLoadingMore,
+    conversationsPagination,
     error,
   } = useChat();
 
@@ -51,6 +55,21 @@ const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
   const [userSearchQuery, setUserSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<User[]>([]);
   const [searchingUsers, setSearchingUsers] = useState(false);
+  
+  const conversationsListRef = useRef<HTMLDivElement>(null);
+
+  // Infinite scroll handler
+  const handleScroll = useCallback(() => {
+    const element = conversationsListRef.current;
+    if (!element) return;
+
+    const { scrollTop } = element;
+    const isNearTop = scrollTop < 100; // Load more when near the top (for older conversations)
+
+    if (isNearTop && conversationsPagination?.hasNext && !isLoadingMore) {
+      loadMoreConversations();
+    }
+  }, [conversationsPagination, isLoadingMore, loadMoreConversations]);
 
   // Filter conversations based on search query
   useEffect(() => {
@@ -64,6 +83,15 @@ const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
       setFilteredConversations(filtered);
     }
   }, [conversations, searchQuery]);
+
+  // Add scroll event listener for infinite scrolling
+  useEffect(() => {
+    const element = conversationsListRef.current;
+    if (!element) return;
+
+    element.addEventListener('scroll', handleScroll);
+    return () => element.removeEventListener('scroll', handleScroll);
+  }, [handleScroll]);
 
   // Search for users when creating new chat
   useEffect(() => {
@@ -164,11 +192,21 @@ const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
       </Box>
 
       {/* Conversations List */}
-      <Box sx={{ flex: 1, overflow: 'auto' }}>
+      <Box ref={conversationsListRef} sx={{ flex: 1, overflow: 'auto' }}>
         {error && (
           <Alert severity="error" sx={{ m: 2 }}>
             {error}
           </Alert>
+        )}
+
+        {/* Loading more indicator at the top */}
+        {isLoadingMore && (
+          <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
+            <CircularProgress size={20} />
+            <Typography variant="caption" sx={{ ml: 1 }}>
+              Loading older conversations...
+            </Typography>
+          </Box>
         )}
 
         {isLoading ? (
@@ -203,16 +241,23 @@ const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
                   }}
                 >
                   <ListItemAvatar>
-                    <Badge
-                      overlap="circular"
-                      anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-                      variant="dot"
-                      color={conversation.otherParticipant.isOnline ? 'success' : 'default'}
-                    >
+                    <Box sx={{ position: 'relative' }}>
                       <Avatar>
                         {conversation.otherParticipant.username.charAt(0).toUpperCase()}
                       </Avatar>
-                    </Badge>
+                      <Box
+                        sx={{
+                          position: 'absolute',
+                          bottom: 2,
+                          right: 2,
+                        }}
+                      >
+                        <OnlineStatus 
+                          isOnline={conversation.otherParticipant.isOnline || false} 
+                          size="small" 
+                        />
+                      </Box>
+                    </Box>
                   </ListItemAvatar>
                   
                   <Box sx={{ flex: 1, minWidth: 0 }}>

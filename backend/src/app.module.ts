@@ -7,6 +7,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { HealthModule } from './health/health.module';
 import { AuthModule } from './auth/auth.module';
 import { MessagesModule } from './messages/messages.module';
+import { UsersModule } from './users/users.module';
 import { LoggerModule } from './logger/logger.module';
 import { LoggingMiddleware } from './logger/middleware/logging.middleware';
 import { LoggingInterceptor } from './logger/interceptors/logging.interceptor';
@@ -22,6 +23,7 @@ import { LoggingInterceptor } from './logger/interceptors/logging.interceptor';
     HealthModule,
     AuthModule,
     MessagesModule,
+    UsersModule,
   ],
   controllers: [AppController],
   providers: [

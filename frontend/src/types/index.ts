@@ -33,6 +33,8 @@ export interface RegisterCredentials {
   confirmPassword: string;
 }
 
+export type MessageStatus = 'pending' | 'sent' | 'delivered' | 'read' | 'failed';
+
 export interface Message {
   id: string;
   content: string;
@@ -45,6 +47,7 @@ export interface Message {
   isDeleted?: boolean;
   createdAt?: Date;
   updatedAt?: Date;
+  status?: MessageStatus;
   sender?: {
     id: string;
     username: string;
@@ -70,6 +73,7 @@ export interface ConversationPreview {
     senderId: string;
   };
   unreadCount: number;
+  updatedAt?: Date;
 }
 
 export interface SocketEvents {
@@ -136,7 +140,26 @@ export interface ChatState {
   currentConversation: Conversation | null;
   messages: Message[];
   isLoading: boolean;
+  isLoadingMore: boolean;
+  isLoadingMoreMessages: boolean;
   error: string | null;
+  conversationsPagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrevious: boolean;
+  } | null;
+  messagesPagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrevious: boolean;
+    cursor?: string;
+  } | null;
 }
 
 export interface AuthState {

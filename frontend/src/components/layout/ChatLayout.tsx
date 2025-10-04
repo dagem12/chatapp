@@ -17,12 +17,12 @@ import {
   Menu as MenuIcon,
   AccountCircle,
   Logout,
-  Settings,
 } from '@mui/icons-material';
 import { useAuth } from '../../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import ConversationSidebar from '../chat/ConversationSidebar';
 import ChatWindow from '../chat/ChatWindow';
+import { OnlineStatus } from '../common/OnlineStatus';
 
 const DRAWER_WIDTH = 320;
 
@@ -93,18 +93,29 @@ const ChatLayout: React.FC = () => {
             <Typography variant="body2" sx={{ display: { xs: 'none', sm: 'block' } }}>
               {user?.username}
             </Typography>
-            <IconButton
-              size="large"
-              aria-label="account of current user"
-              aria-controls="profile-menu"
-              aria-haspopup="true"
-              onClick={handleProfileMenuOpen}
-              color="inherit"
-            >
-              <Avatar sx={{ width: 32, height: 32 }}>
-                {user?.username?.charAt(0).toUpperCase()}
-              </Avatar>
-            </IconButton>
+            <Box sx={{ position: 'relative' }}>
+              <IconButton
+                size="large"
+                aria-label="account of current user"
+                aria-controls="profile-menu"
+                aria-haspopup="true"
+                onClick={handleProfileMenuOpen}
+                color="inherit"
+              >
+                <Avatar sx={{ width: 32, height: 32 }}>
+                  {user?.username?.charAt(0).toUpperCase()}
+                </Avatar>
+              </IconButton>
+              <Box
+                sx={{
+                  position: 'absolute',
+                  bottom: 2,
+                  right: 2,
+                }}
+              >
+                <OnlineStatus isOnline={true} size="small" />
+              </Box>
+            </Box>
           </Box>
         </Toolbar>
       </AppBar>
@@ -129,10 +140,10 @@ const ChatLayout: React.FC = () => {
           <AccountCircle sx={{ mr: 1 }} />
           Profile
         </MenuItem>
-        <MenuItem onClick={handleProfileMenuClose}>
+        {/* <MenuItem onClick={handleProfileMenuClose}>
           <Settings sx={{ mr: 1 }} />
           Settings
-        </MenuItem>
+        </MenuItem> */}
         <Divider />
         <MenuItem onClick={handleLogout}>
           <Logout sx={{ mr: 1 }} />

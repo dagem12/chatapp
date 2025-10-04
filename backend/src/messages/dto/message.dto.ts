@@ -29,6 +29,15 @@ export class CreateMessageDto {
   conversationId: string;
 
   @ApiProperty({ 
+    description: 'Temporary ID for tracking pending messages', 
+    example: 'temp-1234567890-abc123',
+    required: false,
+  })
+  @IsOptional()
+  @IsString({ message: 'Temp ID must be a string' })
+  tempId?: string;
+
+  @ApiProperty({ 
     description: 'Type of message', 
     enum: MessageType,
     example: MessageType.TEXT,
@@ -165,6 +174,12 @@ export class MessageResponseDto {
 
   @ApiProperty({ description: 'Message last update timestamp', example: '2024-01-01T12:00:00Z' })
   updatedAt: Date;
+
+  @ApiProperty({ description: 'Message sender ID', example: 'cmgb1tyby0009u89ogjjmlkoo' })
+  senderId: string;
+
+  @ApiProperty({ description: 'Message status', example: 'sent', enum: ['pending', 'sent', 'delivered', 'read', 'failed'] })
+  status: string;
 
   @ApiProperty({ description: 'Message sender information', type: SenderResponseDto })
   sender: SenderResponseDto;

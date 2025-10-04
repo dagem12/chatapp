@@ -255,6 +255,11 @@ export class MessagesService {
     markAsReadDto: MarkMessagesAsReadDto,
   ): Promise<MessagesMarkedAsReadResponse> {
     const { messageIds } = markAsReadDto;
+    
+    this.logger.log(`markMessagesAsRead: Processing request for user ${userId}`, {
+      messageIds,
+      messageCount: messageIds.length
+    });
 
     // Verify that all messages belong to conversations where the user is a participant
     const messages = await this.prisma.message.findMany({
@@ -278,20 +283,29 @@ export class MessagesService {
       message.conversation.participants.length > 0
     );
 
+    this.logger.log(`markMessagesAsRead: Found ${messages.length} messages, ${accessibleMessages.length} accessible`);
+
     if (accessibleMessages.length === 0) {
+      this.logger.warn(`markMessagesAsRead: No accessible messages found for user ${userId}`);
       throw new ForbiddenException('No accessible messages found');
     }
 
-    // Mark messages as read
-    const updateResult = await this.prisma.message.updateMany({
-      where: {
-        id: { in: accessibleMessages.map(m => m.id) },
-        isRead: false,
-      },
-      data: {
-        isRead: true,
-      },
-    });
+      // Mark messages as read (only update if not already read)
+      this.logger.log(`markMessagesAsRead: Updating ${accessibleMessages.length} messages to isRead=true`);
+      const updateResult = await this.prisma.message.updateMany({
+        where: {
+          id: { in: accessibleMessages.map(m => m.id) },
+          isRead: false,
+        },
+        data: {
+          isRead: true,
+        },
+      });
+      
+      this.logger.log(`markMessagesAsRead: Updated ${updateResult.count} messages in database`);
+      
+      // Always return success even if no messages were updated (they were already read)
+      // This ensures read receipts are sent regardless of current read status
 
     // Update lastReadAt for the user in each conversation
     const conversationIds = [...new Set(accessibleMessages.map(m => m.conversationId))];
@@ -309,6 +323,11 @@ export class MessagesService {
         })
       )
     );
+
+    this.logger.log(`markMessagesAsRead: Successfully completed for user ${userId}`, {
+      markedCount: updateResult.count,
+      messageIds: accessibleMessages.map(m => m.id)
+    });
 
     return {
       success: true,
@@ -553,6 +572,8 @@ export class MessagesService {
       isDeleted: message.isDeleted,
       createdAt: message.createdAt,
       updatedAt: message.updatedAt,
+      senderId: message.senderId, // Add senderId for frontend compatibility
+      status: message.isRead ? 'read' : 'sent', // Add status field for frontend
       sender: {
         id: message.sender.id,
         username: message.sender.username,
@@ -581,8 +602,21 @@ export class MessagesService {
 
     // Calculate unread count for the current user
     const userParticipant = conversation.participants.find((p: any) => p.userId === userId);
-    const unreadCount = userParticipant ? 
-      Math.max(0, conversation.messages.length - (userParticipant.lastReadAt ? 1 : 0)) : 0;
+    let unreadCount = 0;
+    
+    if (userParticipant && conversation.messages.length > 0) {
+      // Count messages that are not read by the current user
+      unreadCount = conversation.messages.filter((message: any) => {
+        // Message is unread if:
+        // 1. It's not from the current user AND
+        // 2. It was created after the user's lastReadAt timestamp
+        const isFromOtherUser = message.senderId !== userId;
+        const isAfterLastRead = !userParticipant.lastReadAt || 
+          new Date(message.createdAt) > new Date(userParticipant.lastReadAt);
+        
+        return isFromOtherUser && isAfterLastRead;
+      }).length;
+    }
 
     return {
       id: conversation.id,
@@ -612,8 +646,21 @@ export class MessagesService {
 
     // Calculate unread count
     const userParticipant = conversation.participants.find((p: any) => p.userId === userId);
-    const unreadCount = userParticipant ? 
-      Math.max(0, conversation.messages.length - (userParticipant.lastReadAt ? 1 : 0)) : 0;
+    let unreadCount = 0;
+    
+    if (userParticipant && conversation.messages.length > 0) {
+      // Count messages that are not read by the current user
+      unreadCount = conversation.messages.filter((message: any) => {
+        // Message is unread if:
+        // 1. It's not from the current user AND
+        // 2. It was created after the user's lastReadAt timestamp
+        const isFromOtherUser = message.senderId !== userId;
+        const isAfterLastRead = !userParticipant.lastReadAt || 
+          new Date(message.createdAt) > new Date(userParticipant.lastReadAt);
+        
+        return isFromOtherUser && isAfterLastRead;
+      }).length;
+    }
 
     return {
       id: conversation.id,
@@ -628,5 +675,69 @@ export class MessagesService {
       unreadCount,
       updatedAt: conversation.updatedAt,
     };
+  }
+
+  async isUserParticipant(userId: string, conversationId: string): Promise<boolean> {
+    const participant = await this.prisma.conversationParticipant.findFirst({
+      where: {
+        userId,
+        conversationId,
+      },
+    });
+
+    return !!participant;
+  }
+
+  // Get all conversations for a user (for auto-joining rooms)
+  async getUserConversations(userId: string): Promise<{ success: boolean; data?: any[]; error?: string }> {
+    try {
+      const conversations = await this.prisma.conversation.findMany({
+        where: {
+          participants: {
+            some: {
+              userId,
+            },
+          },
+        },
+        select: {
+          id: true,
+        },
+      });
+
+      return {
+        success: true,
+        data: conversations,
+      };
+    } catch (error) {
+      this.logger.error('Error getting user conversations:', error);
+      return {
+        success: false,
+        error: 'Failed to get user conversations',
+      };
+    }
+  }
+
+  async getConversationParticipants(conversationId: string): Promise<{ success: boolean; data?: any[]; error?: string }> {
+    try {
+      const participants = await this.prisma.conversationParticipant.findMany({
+        where: {
+          conversationId,
+        },
+        select: {
+          userId: true,
+        },
+      });
+
+      return {
+        success: true,
+        data: participants,
+      };
+    } catch (error) {
+      this.logger.error('Error getting conversation participants:', error);
+      return {
+        success: false,
+        error: 'Failed to get conversation participants',
+      };
+    }
   }
 }
