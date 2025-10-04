@@ -329,12 +329,15 @@ export class ConversationsController {
   async getConversation(
     @Request() req: any,
     @Param('conversationId', CuidValidationPipe) conversationId: string,
-  ): Promise<ConversationResponseDto> {
+  ): Promise<{ success: boolean; data: ConversationResponseDto }> {
     this.logger.log(`Conversation details request from user: ${req.user.id} for conversation: ${conversationId}`);
     try {
       const result = await this.messagesService.getConversationById(req.user.id, conversationId);
       this.logger.log(`Conversation details retrieved successfully for user: ${req.user.id}, conversation: ${conversationId}`);
-      return result;
+      return {
+        success: true,
+        data: result,
+      };
     } catch (error) {
       this.logger.error(`Conversation details retrieval failed for user: ${req.user.id}, conversation: ${conversationId}`, error.stack);
       throw error;

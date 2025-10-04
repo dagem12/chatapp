@@ -5,6 +5,34 @@ import { PrismaClient } from '@prisma/client';
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(PrismaService.name);
 
+  constructor() {
+    super({
+      datasources: {
+        db: {
+          url: process.env.DATABASE_URL,
+        },
+      },
+      log: [
+        {
+          emit: 'stdout',
+          level: 'error',
+        },
+        {
+          emit: 'stdout',
+          level: 'warn',
+        },
+        {
+          emit: 'stdout',
+          level: 'info',
+        },
+        ...(process.env.NODE_ENV === 'development' ? [{
+          emit: 'stdout' as const,
+          level: 'query' as const,
+        }] : []),
+      ],
+    });
+  }
+
   async onModuleInit() {
     this.logger.log('Connecting to database...');
     try {
@@ -23,6 +51,17 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       this.logger.log('Database disconnected successfully');
     } catch (error) {
       this.logger.error('Failed to disconnect from database', error.stack);
+    }
+  }
+
+  // Health check method
+  async isHealthy(): Promise<boolean> {
+    try {
+      await this.$queryRaw`SELECT 1`;
+      return true;
+    } catch (error) {
+      this.logger.error('Database health check failed', error.stack);
+      return false;
     }
   }
 }

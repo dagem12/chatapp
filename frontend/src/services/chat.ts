@@ -67,21 +67,46 @@ export class ChatService {
   // Get a specific conversation with messages
   async getConversation(conversationId: string): Promise<ApiResponse<Conversation>> {
     try {
-      const response = await api.get<ApiResponse<any>>(`/conversations/${conversationId}`);
+      const response = await api.get<any>(`/conversations/${conversationId}`);
       
-      // Convert backend response to frontend format
-      const backendConversation = response.data.data;
+      console.log('Full API response:', response.data);
+      
+      // Handle both old and new response formats
+      let backendConversation;
+      let success = true;
+      
+      if (response.data && response.data.data) {
+        // New format: { success: true, data: conversation }
+        backendConversation = response.data.data;
+        success = response.data.success;
+      } else if (response.data && response.data.id) {
+        // Old format: conversation directly
+        backendConversation = response.data;
+        success = true;
+      } else {
+        console.error('Invalid API response structure:', response.data);
+        throw new Error('Invalid response structure from server');
+      }
+      
+      console.log('Backend conversation data:', backendConversation);
+      
+      // Validate required fields
+      if (!backendConversation || !backendConversation.id) {
+        console.error('Missing conversation ID in response:', backendConversation);
+        throw new Error('Missing conversation ID in response');
+      }
+      
       const convertedConversation: Conversation = {
         id: backendConversation.id,
-        participants: backendConversation.participants.map((p: any) => ({
+        participants: backendConversation.participants?.map((p: any) => ({
           id: p.id,
           username: p.username,
           email: '', // Not provided by backend
           avatar: p.avatar,
           isOnline: p.isOnline,
           lastSeen: new Date(p.lastSeen),
-        })),
-        unreadCount: backendConversation.unreadCount,
+        })) || [],
+        unreadCount: backendConversation.unreadCount || 0,
         updatedAt: new Date(backendConversation.updatedAt),
         createdAt: new Date(backendConversation.createdAt),
         lastMessage: backendConversation.lastMessage ? {
@@ -94,9 +119,9 @@ export class ChatService {
           messageType: backendConversation.lastMessage.messageType,
         } : undefined,
       };
-      
+      console.log('Converted conversation:', convertedConversation);
       return {
-        success: response.data.success,
+        success,
         data: convertedConversation,
       };
     } catch (error) {

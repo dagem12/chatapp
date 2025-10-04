@@ -26,59 +26,68 @@ export class AuthService {
       throw new BadRequestException('Passwords do not match');
     }
 
-    const existingUserByEmail = await this.prisma.user.findUnique({
-      where: { email: email.toLowerCase() },
-    });
+    try {
+      const existingUserByEmail = await this.prisma.user.findUnique({
+        where: { email: email.toLowerCase() },
+      });
 
-    if (existingUserByEmail) {
-      this.logger.warn(`Registration failed - email already exists: ${email}`);
-      throw new ConflictException('Email already exists');
+      if (existingUserByEmail) {
+        this.logger.warn(`Registration failed - email already exists: ${email}`);
+        throw new ConflictException('Email already exists');
+      }
+
+      const existingUserByUsername = await this.prisma.user.findUnique({
+        where: { username },
+      });
+
+      if (existingUserByUsername) {
+        this.logger.warn(`Registration failed - username already exists: ${username}`);
+        throw new ConflictException('Username already exists');
+      }
+
+      const saltRounds = 12;
+      const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+      const user = await this.prisma.user.create({
+        data: {
+          email: email.toLowerCase(),
+          username,
+          password: hashedPassword,
+          isOnline: true,
+          lastSeen: new Date(),
+        },
+        select: {
+          id: true,
+          email: true,
+          username: true,
+          avatar: true,
+          isOnline: true,
+          lastSeen: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+
+      const token = await this.generateToken(user.id, user.email, user.username);
+
+      this.logger.log(`User registered successfully: ${user.id} (${email})`);
+
+      return {
+        success: true,
+        message: 'User registered successfully',
+        data: {
+          user,
+          token,
+        },
+      };
+    } catch (error) {
+      if (error instanceof ConflictException || error instanceof BadRequestException) {
+        throw error;
+      }
+      
+      this.logger.error(`Registration failed due to database error for email: ${email}`, error.stack);
+      throw new BadRequestException('Registration failed. Please try again.');
     }
-
-    const existingUserByUsername = await this.prisma.user.findUnique({
-      where: { username },
-    });
-
-    if (existingUserByUsername) {
-      this.logger.warn(`Registration failed - username already exists: ${username}`);
-      throw new ConflictException('Username already exists');
-    }
-
-    const saltRounds = 12;
-    const hashedPassword = await bcrypt.hash(password, saltRounds);
-
-    const user = await this.prisma.user.create({
-      data: {
-        email: email.toLowerCase(),
-        username,
-        password: hashedPassword,
-        isOnline: true,
-        lastSeen: new Date(),
-      },
-      select: {
-        id: true,
-        email: true,
-        username: true,
-        avatar: true,
-        isOnline: true,
-        lastSeen: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    });
-
-    const token = await this.generateToken(user.id, user.email, user.username);
-
-    this.logger.log(`User registered successfully: ${user.id} (${email})`);
-
-    return {
-      success: true,
-      message: 'User registered successfully',
-      data: {
-        user,
-        token,
-      },
-    };
   }
 
   async login(loginDto: LoginDto): Promise<AuthResponse> {
@@ -86,52 +95,61 @@ export class AuthService {
 
     this.logger.log(`Login attempt for email: ${email}`);
 
-    const user = await this.prisma.user.findUnique({
-      where: { email: email.toLowerCase() },
-    });
+    try {
+      const user = await this.prisma.user.findUnique({
+        where: { email: email.toLowerCase() },
+      });
 
-    if (!user) {
-      this.logger.warn(`Login failed - user not found: ${email}`);
-      throw new UnauthorizedException('Invalid email or password');
+      if (!user) {
+        this.logger.warn(`Login failed - user not found: ${email}`);
+        throw new UnauthorizedException('Invalid email or password');
+      }
+
+      const isPasswordValid = await bcrypt.compare(password, user.password);
+
+      if (!isPasswordValid) {
+        this.logger.warn(`Login failed - invalid password for user: ${user.id} (${email})`);
+        throw new UnauthorizedException('Invalid email or password');
+      }
+
+      const updatedUser = await this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          isOnline: true,
+          lastSeen: new Date(),
+        },
+        select: {
+          id: true,
+          email: true,
+          username: true,
+          avatar: true,
+          isOnline: true,
+          lastSeen: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+
+      const token = await this.generateToken(updatedUser.id, updatedUser.email, updatedUser.username);
+
+      this.logger.log(`User logged in successfully: ${updatedUser.id} (${email})`);
+
+      return {
+        success: true,
+        message: 'Login successful',
+        data: {
+          user: updatedUser,
+          token,
+        },
+      };
+    } catch (error) {
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+      
+      this.logger.error(`Login failed due to database error for email: ${email}`, error.stack);
+      throw new UnauthorizedException('Login failed. Please try again.');
     }
-
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-
-    if (!isPasswordValid) {
-      this.logger.warn(`Login failed - invalid password for user: ${user.id} (${email})`);
-      throw new UnauthorizedException('Invalid email or password');
-    }
-
-    const updatedUser = await this.prisma.user.update({
-      where: { id: user.id },
-      data: {
-        isOnline: true,
-        lastSeen: new Date(),
-      },
-      select: {
-        id: true,
-        email: true,
-        username: true,
-        avatar: true,
-        isOnline: true,
-        lastSeen: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    });
-
-    const token = await this.generateToken(updatedUser.id, updatedUser.email, updatedUser.username);
-
-    this.logger.log(`User logged in successfully: ${updatedUser.id} (${email})`);
-
-    return {
-      success: true,
-      message: 'Login successful',
-      data: {
-        user: updatedUser,
-        token,
-      },
-    };
   }
 
   async getProfile(userId: string): Promise<UserProfileResponse> {

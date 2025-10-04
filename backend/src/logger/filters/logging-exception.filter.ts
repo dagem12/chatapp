@@ -7,6 +7,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
+import { PrismaClientKnownRequestError, PrismaClientUnknownRequestError } from '@prisma/client/runtime/library';
 
 @Catch()
 export class LoggingExceptionFilter implements ExceptionFilter {
@@ -21,7 +22,38 @@ export class LoggingExceptionFilter implements ExceptionFilter {
     let message = 'Internal server error';
     let error = 'Internal Server Error';
 
-    if (exception instanceof HttpException) {
+    // Handle Prisma errors
+    if (exception instanceof PrismaClientKnownRequestError) {
+      status = HttpStatus.INTERNAL_SERVER_ERROR;
+      message = 'Database operation failed';
+      error = 'Database Error';
+      
+      // Log the full Prisma error details
+      this.logger.error(
+        `Prisma Error: ${exception.code} - ${exception.message}`,
+        {
+          code: exception.code,
+          meta: exception.meta,
+          stack: exception.stack,
+          path: request.url,
+          method: request.method,
+        },
+      );
+    } else if (exception instanceof PrismaClientUnknownRequestError) {
+      status = HttpStatus.INTERNAL_SERVER_ERROR;
+      message = 'Database connection failed';
+      error = 'Database Error';
+      
+      // Log the full Prisma error details
+      this.logger.error(
+        `Prisma Unknown Error: ${exception.message}`,
+        {
+          stack: exception.stack,
+          path: request.url,
+          method: request.method,
+        },
+      );
+    } else if (exception instanceof HttpException) {
       status = exception.getStatus();
       const exceptionResponse = exception.getResponse();
       
@@ -31,11 +63,34 @@ export class LoggingExceptionFilter implements ExceptionFilter {
         message = (exceptionResponse as any).message || exception.message;
         error = (exceptionResponse as any).error || error;
       }
+      
+      // Log HTTP exceptions with full context
+      this.logger.error(
+        `HTTP Exception: ${error} - ${message}`,
+        {
+          statusCode: status,
+          path: request.url,
+          method: request.method,
+          stack: exception.stack,
+        },
+      );
     } else if (exception instanceof Error) {
-      message = exception.message;
-      error = exception.name;
+      message = 'Internal server error';
+      error = 'Internal Server Error';
+      
+      // Log all other errors with full context
+      this.logger.error(
+        `Unknown Error: ${exception.name} - ${exception.message}`,
+        {
+          name: exception.name,
+          stack: exception.stack,
+          path: request.url,
+          method: request.method,
+        },
+      );
     }
 
+    // Return simplified error response to frontend
     const errorResponse = {
       statusCode: status,
       timestamp: new Date().toISOString(),
@@ -44,19 +99,6 @@ export class LoggingExceptionFilter implements ExceptionFilter {
       message,
       error,
     };
-
-    // Log the error with full context
-    this.logger.error(
-      `Exception: ${error} - ${message}`,
-      {
-        statusCode: status,
-        path: request.url,
-        method: request.method,
-        userAgent: request.headers['user-agent'],
-        ip: request.ip,
-        stack: exception instanceof Error ? exception.stack : undefined,
-      },
-    );
 
     response.status(status).json(errorResponse);
   }

@@ -215,38 +215,37 @@ const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
                     </Badge>
                   </ListItemAvatar>
                   
-                  <ListItemText
-                    primary={
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Typography variant="subtitle2" noWrap>
-                          {conversation.otherParticipant.username}
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    {/* Primary content */}
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+                      <Typography variant="subtitle2" noWrap>
+                        {conversation.otherParticipant.username}
+                      </Typography>
+                      {conversation.lastMessage && (
+                        <Typography variant="caption" color="text.secondary">
+                          {formatTimestamp(conversation.lastMessage.timestamp)}
                         </Typography>
-                        {conversation.lastMessage && (
-                          <Typography variant="caption" color="text.secondary">
-                            {formatTimestamp(conversation.lastMessage.timestamp)}
-                          </Typography>
-                        )}
-                      </Box>
-                    }
-                    secondary={
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 0.5 }}>
-                        <Typography variant="body2" color="text.secondary" noWrap sx={{ flex: 1 }}>
-                          {conversation.lastMessage 
-                            ? truncateMessage(conversation.lastMessage.content)
-                            : 'No messages yet'
-                          }
-                        </Typography>
-                        {conversation.unreadCount > 0 && (
-                          <Chip
-                            label={conversation.unreadCount}
-                            size="small"
-                            color="primary"
-                            sx={{ ml: 1, minWidth: 20, height: 20 }}
-                          />
-                        )}
-                      </Box>
-                    }
-                  />
+                      )}
+                    </Box>
+                    
+                    {/* Secondary content */}
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography variant="body2" color="text.secondary" noWrap sx={{ flex: 1 }}>
+                        {conversation.lastMessage 
+                          ? truncateMessage(conversation.lastMessage.content)
+                          : 'No messages yet'
+                        }
+                      </Typography>
+                      {conversation.unreadCount > 0 && (
+                        <Chip
+                          label={conversation.unreadCount}
+                          size="small"
+                          color="primary"
+                          sx={{ ml: 1, minWidth: 20, height: 20 }}
+                        />
+                      )}
+                    </Box>
+                  </Box>
                 </ListItemButton>
               </ListItem>
             ))}
