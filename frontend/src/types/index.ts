@@ -135,7 +135,7 @@ export interface PaginatedResponse<T> extends ApiResponse<T[]> {
 }
 
 export interface ChatState {
-  user: AuthUser | null;
+  user: AuthUser | null | undefined;
   conversations: ConversationPreview[];
   currentConversation: Conversation | null;
   messages: Message[];
@@ -163,7 +163,7 @@ export interface ChatState {
 }
 
 export interface AuthState {
-  user: AuthUser | null;
+  user: AuthUser | null | undefined;
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;

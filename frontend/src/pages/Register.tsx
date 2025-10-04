@@ -142,7 +142,13 @@ const Register: React.FC = () => {
 
     const success = await register(formData);
     if (success) {
-      navigate('/chat');
+      // Redirect to login page with success message
+      navigate('/login', { 
+        state: { 
+          message: 'Registration successful! Please log in to continue.',
+          type: 'success'
+        } 
+      });
     }
   };
 

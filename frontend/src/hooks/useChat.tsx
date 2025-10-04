@@ -44,6 +44,7 @@ type ChatAction =
   | { type: 'UPDATE_MESSAGES_READ'; payload: { messageIds: string[]; readBy: string } }
   | { type: 'UPDATE_CONVERSATION'; payload: ConversationPreview }
   | { type: 'UPDATE_USER_STATUS'; payload: { userId: string; isOnline: boolean } }
+  | { type: 'UPDATE_CONVERSATION_PARTICIPANT'; payload: { conversationId: string; participant: User } }
   | { type: 'MARK_MESSAGES_READ'; payload: string[] }
   | { type: 'RESET_CHAT' };
 
@@ -84,12 +85,15 @@ const chatReducer = (state: ChatState, action: ChatAction): ChatState => {
       return { ...state, currentConversation: action.payload, isLoading: false };
     
     case 'SET_MESSAGES':
+      const sortedMessages = action.payload.messages.sort((a, b) => 
+        new Date(a.timestamp || a.createdAt || 0).getTime() - 
+        new Date(b.timestamp || b.createdAt || 0).getTime()
+      );
+      
+      
       return { 
         ...state, 
-        messages: action.payload.messages.sort((a, b) => 
-          new Date(a.timestamp || a.createdAt || 0).getTime() - 
-          new Date(b.timestamp || b.createdAt || 0).getTime()
-        ), 
+        messages: sortedMessages, 
         messagesPagination: action.payload.pagination,
         isLoading: false 
       };
@@ -108,6 +112,7 @@ const chatReducer = (state: ChatState, action: ChatAction): ChatState => {
     
     case 'ADD_MESSAGE':
       const isCurrentConversation = state.currentConversation?.id === action.payload.conversationId;
+      
       
       // Check if this message already exists (to prevent duplicates)
       const messageExists = state.messages.some(msg => {
@@ -147,34 +152,66 @@ const chatReducer = (state: ChatState, action: ChatAction): ChatState => {
       }
       
       // Update conversations and reorder them by latest activity
-      const updatedConversations = state.conversations.map(conv => {
-        if (conv.id === action.payload.conversationId) {
-          const isFromOtherUser = action.payload.senderId !== action.payload.currentUserId;
-          const isCurrentConversation = state.currentConversation?.id === action.payload.conversationId;
-          
-          // Only increment unread count if:
-          // 1. Message is from another user AND
-          // 2. User is not currently viewing this conversation AND
-          // 3. The message is not already the last message (prevent double counting)
-          const isAlreadyLastMessage = conv.lastMessage?.content === action.payload.content && 
-            conv.lastMessage?.senderId === action.payload.senderId;
-          const shouldIncrementUnread = isFromOtherUser && !isCurrentConversation && !isAlreadyLastMessage;
-          const newUnreadCount = shouldIncrementUnread ? Math.max(conv.unreadCount + 1, 0) : conv.unreadCount;
-          
-          return {
-            ...conv,
-            lastMessage: {
-              content: action.payload.content,
-              timestamp: action.payload.timestamp || action.payload.createdAt,
-              senderId: action.payload.senderId,
-            },
-            unreadCount: newUnreadCount,
-            // Update the conversation's updatedAt to reflect latest activity
-            updatedAt: new Date(action.payload.timestamp || action.payload.createdAt || Date.now()),
-          };
-        }
-        return conv;
-      });
+      const existingConversationIndex = state.conversations.findIndex(conv => conv.id === action.payload.conversationId);
+      
+      let updatedConversations;
+      if (existingConversationIndex !== -1) {
+        // Update existing conversation
+        updatedConversations = state.conversations.map(conv => {
+          if (conv.id === action.payload.conversationId) {
+            const isFromOtherUser = action.payload.senderId !== action.payload.currentUserId;
+            const isCurrentConversation = state.currentConversation?.id === action.payload.conversationId;
+            
+            // Only increment unread count if:
+            // 1. Message is from another user AND
+            // 2. User is not currently viewing this conversation AND
+            // 3. The message is not already the last message (prevent double counting)
+            const isAlreadyLastMessage = conv.lastMessage?.content === action.payload.content && 
+              conv.lastMessage?.senderId === action.payload.senderId;
+            const shouldIncrementUnread = isFromOtherUser && !isCurrentConversation && !isAlreadyLastMessage;
+            const newUnreadCount = shouldIncrementUnread ? Math.max(conv.unreadCount + 1, 0) : conv.unreadCount;
+            
+            return {
+              ...conv,
+              lastMessage: {
+                content: action.payload.content,
+                timestamp: action.payload.timestamp || action.payload.createdAt,
+                senderId: action.payload.senderId,
+              },
+              unreadCount: newUnreadCount,
+              // Update the conversation's updatedAt to reflect latest activity
+              updatedAt: new Date(action.payload.timestamp || action.payload.createdAt || Date.now()),
+            };
+          }
+          return conv;
+        });
+      } else {
+        // Create new conversation entry for a conversation that doesn't exist in the list
+        // This happens when receiving a message from a conversation that wasn't loaded yet
+        const isFromOtherUser = action.payload.senderId !== action.payload.currentUserId;
+        const isCurrentConversation = state.currentConversation?.id === action.payload.conversationId;
+        const shouldIncrementUnread = isFromOtherUser && !isCurrentConversation;
+        
+        const newConversation: ConversationPreview = {
+          id: action.payload.conversationId,
+          otherParticipant: {
+            id: action.payload.senderId,
+            username: 'Unknown User', // We'll need to fetch this from the backend
+            email: '',
+            isOnline: false,
+            lastSeen: undefined,
+          },
+          lastMessage: {
+            content: action.payload.content,
+            timestamp: action.payload.timestamp || action.payload.createdAt,
+            senderId: action.payload.senderId,
+          },
+          unreadCount: shouldIncrementUnread ? 1 : 0,
+          updatedAt: new Date(action.payload.timestamp || action.payload.createdAt || Date.now()),
+        };
+        
+        updatedConversations = [newConversation, ...state.conversations];
+      }
 
       // Reorder conversations by latest activity (updatedAt)
       const reorderedConversations = updatedConversations.sort((a, b) => {
@@ -258,7 +295,7 @@ const chatReducer = (state: ChatState, action: ChatAction): ChatState => {
       const replacedMessages = [...state.messages];
       replacedMessages[tempMessageIndex] = action.payload.realMessage;
       
-      const sortedMessages = replacedMessages.sort((a, b) => 
+      const sortedReplacedMessages = replacedMessages.sort((a, b) => 
         new Date(a.timestamp || a.createdAt || 0).getTime() - 
         new Date(b.timestamp || b.createdAt || 0).getTime()
       );
@@ -290,7 +327,7 @@ const chatReducer = (state: ChatState, action: ChatAction): ChatState => {
 
       return { 
         ...state, 
-        messages: sortedMessages,
+        messages: sortedReplacedMessages,
         conversations: reorderedConversationsForReplace2,
       };
     
@@ -339,6 +376,16 @@ const chatReducer = (state: ChatState, action: ChatAction): ChatState => {
               : participant
           ),
         } : null,
+      };
+    
+    case 'UPDATE_CONVERSATION_PARTICIPANT':
+      return {
+        ...state,
+        conversations: state.conversations.map(conv =>
+          conv.id === action.payload.conversationId
+            ? { ...conv, otherParticipant: action.payload.participant }
+            : conv
+        ),
       };
     
     case 'MARK_MESSAGES_READ':
@@ -496,6 +543,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         chatService.getMessages(conversationId, 1, 20), // Load first 20 messages
       ]);
 
+
       if (conversationResponse.success && conversationResponse.data) {
         dispatch({ type: 'SET_CURRENT_CONVERSATION', payload: conversationResponse.data });
         
@@ -507,6 +555,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
               pagination: messagesResponse.pagination 
             } 
           });
+          
         }
 
         // Join new conversation room
@@ -633,6 +682,34 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     }
   }, [state.currentConversation, user, state.messages, markMessagesAsRead]);
 
+  const fetchAndUpdateConversationParticipant = useCallback(async (conversationId: string): Promise<void> => {
+    try {
+      const response = await chatService.getConversation(conversationId);
+      if (response.success && response.data) {
+        // Find the other participant (not the current user)
+        const otherParticipant = response.data.participants.find(p => p.id !== user?.id);
+        if (otherParticipant) {
+          dispatch({
+            type: 'UPDATE_CONVERSATION_PARTICIPANT',
+            payload: {
+              conversationId,
+              participant: {
+                id: otherParticipant.id,
+                username: otherParticipant.username,
+                email: '', // Not provided by conversation endpoint
+                avatar: otherParticipant.avatar,
+                isOnline: otherParticipant.isOnline,
+                lastSeen: otherParticipant.lastSeen,
+              },
+            },
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch conversation details for participant info:', error);
+    }
+  }, [user?.id]);
+
   const clearError = useCallback((): void => {
     dispatch({ type: 'CLEAR_ERROR' });
   }, []);
@@ -651,7 +728,16 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       // Set up socket listeners with stable callbacks
       const handleNewMessage = (data: { message: Message; conversationId: string; timestamp: string }) => {
         // This is always a message from another user
+        
+        // Check if this conversation exists in our list
+        const conversationExists = state.conversations.some(conv => conv.id === data.conversationId);
+        
         dispatch({ type: 'ADD_MESSAGE', payload: { ...data.message, currentUserId: user?.id } });
+        
+        // If the conversation doesn't exist, fetch the conversation details to update the participant info
+        if (!conversationExists) {
+          fetchAndUpdateConversationParticipant(data.conversationId);
+        }
       };
 
       const handleMessageSent = (data: { message: Message; conversationId: string; timestamp: string; tempId?: string }) => {

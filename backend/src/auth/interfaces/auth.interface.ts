@@ -16,7 +16,7 @@ export interface AuthResponse {
       createdAt: Date;
       updatedAt: Date;
     };
-    token: string;
+    token: string | null;
   };
 }
 

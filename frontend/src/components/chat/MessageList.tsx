@@ -14,6 +14,16 @@ interface MessageListProps {
 }
 
 const MessageList: React.FC<MessageListProps> = ({ messages, currentUserId }) => {
+  console.log('📋 MessageList received messages:', {
+    messageCount: messages.length,
+    messages: messages.map(m => ({
+      id: m.id,
+      content: m.content,
+      senderId: m.senderId,
+      createdAt: m.createdAt
+    }))
+  });
+
   const getStatusIcon = (status: MessageStatus | string) => {
     switch (status) {
       case 'pending':

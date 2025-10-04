@@ -238,6 +238,9 @@ export class MessagesGateway
         return;
       }
 
+      // Ensure all participants are joined to the conversation room before sending message
+      await this.ensureAllParticipantsJoined(createMessageDto.conversationId);
+
       // Create message using the service
       const messageResponse = await this.messagesService.createMessage(
         client.userId,
@@ -301,11 +304,15 @@ export class MessagesGateway
             });
             this.logger.log(`User IDs in room: ${userIdsInRoom.join(', ')}`);
           } else {
-            this.logger.warn(`No sockets found in room conversation:${createMessageDto.conversationId}`);
+            this.logger.warn(`No sockets found in room conversation:${createMessageDto.conversationId} - this may cause message delivery issues`);
             
             // If no one is in the room, try to get all participants and join them
             this.logger.log(`Attempting to auto-join all participants to conversation ${createMessageDto.conversationId}`);
             await this.autoJoinConversationParticipants(createMessageDto.conversationId);
+            
+            // Check again after auto-joining
+            const roomAfterJoin = this.server.sockets.adapter.rooms.get(`conversation:${createMessageDto.conversationId}`);
+            this.logger.log(`Room conversation:${createMessageDto.conversationId} now has ${roomAfterJoin?.size || 0} sockets after auto-join`);
           }
         } else {
           this.logger.warn('Server instance not properly initialized, skipping room check');
@@ -315,6 +322,12 @@ export class MessagesGateway
       }
       
       // Try room-based broadcasting first
+      this.logger.log(`📤 Broadcasting newMessage to room conversation:${createMessageDto.conversationId}:`, {
+        messageId: message.id,
+        content: message.content,
+        senderId: message.sender?.id,
+        conversationId: createMessageDto.conversationId
+      });
       client.to(`conversation:${createMessageDto.conversationId}`)
         .emit('newMessage', emitData);
       
@@ -337,12 +350,20 @@ export class MessagesGateway
                     if (this.server && this.server.sockets && this.server.sockets.sockets) {
                       const socket = this.server.sockets.sockets.get(socketId) as AuthenticatedSocket;
                       if (socket) {
-                        this.logger.log(`Direct sending to user ${participant.userId} (socket ${socketId})`);
+                        this.logger.log(`📤 Direct sending newMessage to user ${participant.userId} (socket ${socketId}):`, {
+                          messageId: message.id,
+                          content: message.content,
+                          conversationId: createMessageDto.conversationId
+                        });
                         socket.emit('newMessage', emitData);
                       }
                     } else {
                       // Fallback: use client.to() to broadcast to all sockets of this user
-                      this.logger.log(`Server not available, using client.to() for user ${participant.userId}`);
+                      this.logger.log(`📤 Fallback: Broadcasting newMessage directly to user ${participant.userId} (socket ${socketId}):`, {
+                        messageId: message.id,
+                        content: message.content,
+                        conversationId: createMessageDto.conversationId
+                      });
                       client.to(socketId).emit('newMessage', emitData);
                     }
                   } catch (socketError) {
@@ -691,6 +712,47 @@ export class MessagesGateway
       }
     } catch (error) {
       this.logger.error('Error auto-joining conversation participants:', error);
+    }
+  }
+
+  // Ensure all participants of a conversation are joined to the room
+  private async ensureAllParticipantsJoined(conversationId: string) {
+    try {
+      // Get all participants of this conversation
+      const participants = await this.messagesService.getConversationParticipants(conversationId);
+      
+      if (participants.success && participants.data) {
+        this.logger.log(`Ensuring ${participants.data.length} participants are joined to conversation ${conversationId}`);
+        
+        for (const participant of participants.data) {
+          const userSockets = this.userSockets.get(participant.userId);
+          if (userSockets && this.server && this.server.sockets && this.server.sockets.sockets) {
+            for (const socketId of userSockets) {
+              const socket = this.server.sockets.sockets.get(socketId) as AuthenticatedSocket;
+              if (socket) {
+                try {
+                  // Check if socket is already in the room
+                  const room = this.server.sockets.adapter.rooms.get(`conversation:${conversationId}`);
+                  const isInRoom = room && room.has(socketId);
+                  
+                  if (!isInRoom) {
+                    await socket.join(`conversation:${conversationId}`);
+                    this.logger.log(`Socket ${socketId} (user ${participant.userId}) joined conversation ${conversationId}`);
+                  } else {
+                    this.logger.log(`Socket ${socketId} (user ${participant.userId}) already in conversation ${conversationId}`);
+                  }
+                } catch (error) {
+                  this.logger.warn(`Failed to join socket ${socketId} to conversation ${conversationId}:`, error.message);
+                }
+              }
+            }
+          } else {
+            this.logger.log(`No sockets found for user ${participant.userId} - they may be offline`);
+          }
+        }
+      }
+    } catch (error) {
+      this.logger.error('Error ensuring participants are joined:', error);
     }
   }
 }

@@ -68,16 +68,14 @@ export class AuthService {
         },
       });
 
-      const token = await this.generateToken(user.id, user.email, user.username);
-
       this.logger.log(`User registered successfully: ${user.id} (${email})`);
 
       return {
         success: true,
-        message: 'User registered successfully',
+        message: 'User registered successfully. Please log in to continue.',
         data: {
           user,
-          token,
+          token: null, // Don't provide token - user needs to log in
         },
       };
     } catch (error) {

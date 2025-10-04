@@ -16,7 +16,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 type AuthAction =
   | { type: 'AUTH_START' }
-  | { type: 'AUTH_SUCCESS'; payload: AuthUser }
+  | { type: 'AUTH_SUCCESS'; payload: AuthUser | undefined }
   | { type: 'AUTH_ERROR'; payload: string }
   | { type: 'AUTH_LOGOUT' }
   | { type: 'CLEAR_ERROR' };
@@ -33,7 +33,7 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
       return {
         ...state,
         user: action.payload,
-        isAuthenticated: true,
+        isAuthenticated: !!action.payload, // Only authenticated if payload exists
         isLoading: false,
         error: null,
       };
@@ -126,10 +126,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     const response = await authService.register(credentials);
 
-    if (response.success && response.data) {
-      dispatch({ type: 'AUTH_SUCCESS', payload: response.data });
-      socketService.connect(response.data.token);
-      return true;
+    if (response.success) {
+      if (response.data) {
+        // Registration with auto-login (old behavior)
+        dispatch({ type: 'AUTH_SUCCESS', payload: response.data });
+        socketService.connect(response.data.token);
+        return true;
+      } else {
+        // Registration without auto-login (new behavior)
+        dispatch({ type: 'AUTH_SUCCESS', payload: undefined });
+        return true;
+      }
     } else {
       dispatch({ type: 'AUTH_ERROR', payload: response.error || 'Registration failed' });
       return false;

@@ -123,6 +123,23 @@ export class MessagesController {
     try {
       const result = await this.messagesService.getMessages(req.user.id, conversationId, query);
       this.logger.log(`Messages retrieved successfully for user: ${req.user.id}, conversation: ${conversationId}, count: ${result.data.length}`);
+      
+      // Debug: Log the actual messages being returned
+      if (result.data && result.data.length > 0) {
+        this.logger.log(`📥 API returning messages:`, {
+          conversationId,
+          messageCount: result.data.length,
+          messages: result.data.map(m => ({
+            id: m.id,
+            content: m.content,
+            senderId: m.senderId,
+            createdAt: m.createdAt
+          }))
+        });
+      } else {
+        this.logger.log(`📥 API returning no messages for conversation: ${conversationId}`);
+      }
+      
       return result;
     } catch (error) {
       this.logger.error(`Messages retrieval failed for user: ${req.user.id}, conversation: ${conversationId}`, error.stack);

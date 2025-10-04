@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import {
   Container,
   Paper,
@@ -31,6 +31,7 @@ import loginImage from '../assets/imgs/premium_photo-1720551256983-445d23d516b2.
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const { login, isLoading, error, isAuthenticated, clearError } = useAuth();
@@ -42,6 +43,7 @@ const Login: React.FC = () => {
   
   const [showPassword, setShowPassword] = useState(false);
   const [formErrors, setFormErrors] = useState<Partial<LoginCredentials>>({});
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -52,7 +54,14 @@ const Login: React.FC = () => {
   useEffect(() => {
     // Clear any previous errors when component mounts
     clearError();
-  }, [clearError]);
+    
+    // Check for success message from registration
+    if (location.state?.message && location.state?.type === 'success') {
+      setSuccessMessage(location.state.message);
+      // Clear the state to prevent showing the message again on refresh
+      navigate(location.pathname, { replace: true });
+    }
+  }, [clearError, location.state, location.pathname, navigate]);
 
   const validateForm = (): boolean => {
     const errors: Partial<LoginCredentials> = {};
@@ -174,10 +183,12 @@ const Login: React.FC = () => {
                 showPassword={showPassword}
                 isLoading={isLoading}
                 error={error}
+                successMessage={successMessage}
                 theme={theme}
                 handleInputChange={handleInputChange}
                 handleSubmit={handleSubmit}
                 togglePasswordVisibility={togglePasswordVisibility}
+                setSuccessMessage={setSuccessMessage}
               />
             </Box>
           </Fade>
@@ -262,10 +273,12 @@ const Login: React.FC = () => {
                   showPassword={showPassword}
                   isLoading={isLoading}
                   error={error}
+                  successMessage={successMessage}
                   theme={theme}
                   handleInputChange={handleInputChange}
                   handleSubmit={handleSubmit}
                   togglePasswordVisibility={togglePasswordVisibility}
+                  setSuccessMessage={setSuccessMessage}
                 />
               </Box>
             </Fade>
@@ -356,10 +369,12 @@ interface LoginFormProps {
   showPassword: boolean;
   isLoading: boolean;
   error: string | null;
+  successMessage: string | null;
   theme: any;
   handleInputChange: (field: keyof LoginCredentials) => (event: React.ChangeEvent<HTMLInputElement>) => void;
   handleSubmit: (event: React.FormEvent) => Promise<void>;
   togglePasswordVisibility: () => void;
+  setSuccessMessage: (message: string | null) => void;
 }
 
 const LoginForm: React.FC<LoginFormProps> = ({
@@ -368,10 +383,12 @@ const LoginForm: React.FC<LoginFormProps> = ({
   showPassword,
   isLoading,
   error,
+  successMessage,
   theme,
   handleInputChange,
   handleSubmit,
   togglePasswordVisibility,
+  setSuccessMessage,
 }) => {
   return (
     <Slide direction="up" in timeout={800}>
@@ -415,6 +432,26 @@ const LoginForm: React.FC<LoginFormProps> = ({
             Sign in to continue your conversations
           </Typography>
         </Box>
+
+        {/* Success Alert */}
+        {successMessage && (
+          <Fade in>
+            <Alert 
+              severity="success" 
+              sx={{ 
+                width: '100%', 
+                mb: 3,
+                borderRadius: 2,
+                '& .MuiAlert-icon': {
+                  fontSize: '1.5rem',
+                },
+              }}
+              onClose={() => setSuccessMessage(null)}
+            >
+              {successMessage}
+            </Alert>
+          </Fade>
+        )}
 
         {/* Error Alert */}
         {error && (

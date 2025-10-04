@@ -42,6 +42,15 @@ export class AuthService {
       
       if (response.data.success && response.data.data) {
         const { user, token } = response.data.data;
+        
+        // If no token is provided (registration without auto-login), return success without auth data
+        if (!token) {
+          return {
+            success: true,
+            data: undefined, // No auth data - user needs to log in
+          };
+        }
+        
         const authUser: AuthUser = {
           ...mapUserDataToUser(user),
           token,
