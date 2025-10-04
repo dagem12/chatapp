@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { UserResponseDto } from './dto/user.dto';
 
 @Injectable()
 export class UsersService {
@@ -7,7 +8,7 @@ export class UsersService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async searchUsers(currentUserId: string, query: string): Promise<{ success: boolean; data: any[] }> {
+  async searchUsers(currentUserId: string, query: string): Promise<{ success: boolean; data: UserResponseDto[] }> {
     this.logger.log(`Searching users with query: ${query} for user: ${currentUserId}`);
 
     if (!query || query.trim().length < 2) {

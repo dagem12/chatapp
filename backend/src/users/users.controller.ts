@@ -15,6 +15,7 @@ import {
 } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { UserResponseDto } from './dto/user.dto';
 
 @ApiTags('Users')
 @Controller('users')
@@ -39,32 +40,13 @@ export class UsersController {
   @ApiResponse({ 
     status: 200, 
     description: 'Users found successfully',
-    schema: {
-      type: 'object',
-      properties: {
-        success: { type: 'boolean' },
-        data: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              id: { type: 'string' },
-              username: { type: 'string' },
-              email: { type: 'string' },
-              avatar: { type: 'string', nullable: true },
-              isOnline: { type: 'boolean' },
-              lastSeen: { type: 'string', format: 'date-time' },
-            }
-          }
-        }
-      }
-    }
+    type: [UserResponseDto]
   })
   @ApiResponse({ status: 401, description: 'Unauthorized - invalid or missing token' })
   async searchUsers(
     @Request() req: any,
     @Query('q') query: string,
-  ): Promise<{ success: boolean; data: any[] }> {
+  ): Promise<{ success: boolean; data: UserResponseDto[] }> {
     this.logger.log(`User search request from user: ${req.user.id}, query: ${query}`);
     try {
       const result = await this.usersService.searchUsers(req.user.id, query);
