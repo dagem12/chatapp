@@ -188,10 +188,14 @@ const ChatLayout: React.FC = () => {
           width: { md: `calc(100% - ${DRAWER_WIDTH}px)` },
           height: '100vh',
           overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
         }}
       >
         <Toolbar /> {/* Spacer for AppBar */}
-        <ChatWindow />
+        <Box sx={{ flex: 1, overflow: 'hidden' }}>
+          <ChatWindow />
+        </Box>
       </Box>
     </Box>
   );

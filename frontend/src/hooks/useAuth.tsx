@@ -66,7 +66,7 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
 const initialState: AuthState = {
   user: null,
   isAuthenticated: false,
-  isLoading: false,
+  isLoading: true, // Start with loading true to prevent FOUC
   error: null,
 };
 
@@ -97,6 +97,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           authService.logout();
           dispatch({ type: 'AUTH_LOGOUT' });
         }
+      } else {
+        // No stored authentication, set loading to false
+        dispatch({ type: 'AUTH_LOGOUT' });
       }
     };
 

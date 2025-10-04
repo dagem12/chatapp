@@ -23,13 +23,13 @@ export class ChatService {
     try {
       const response = await api.get<PaginatedResponse<any>>(`/conversations?page=${page}&limit=${limit}`);
       
-      // Convert backend response to frontend format
+      // Convert API response to client format
       const convertedData = (response.data.data || []).map((conv: any) => ({
         id: conv.id,
         otherParticipant: {
           id: conv.otherParticipant.id,
           username: conv.otherParticipant.username,
-          email: '', // Not provided by backend
+          email: '', // Not provided by API
           avatar: conv.otherParticipant.avatar,
           isOnline: conv.otherParticipant.isOnline,
           lastSeen: new Date(conv.otherParticipant.lastSeen),
@@ -69,60 +69,59 @@ export class ChatService {
     try {
       const response = await api.get<any>(`/conversations/${conversationId}`);
       
-      console.log('Full API response:', response.data);
+    
       
       // Handle both old and new response formats
-      let backendConversation;
+      let rawConversationData;
       let success = true;
       
       if (response.data && response.data.data) {
         // New format: { success: true, data: conversation }
-        backendConversation = response.data.data;
+        rawConversationData = response.data.data;
         success = response.data.success;
       } else if (response.data && response.data.id) {
         // Old format: conversation directly
-        backendConversation = response.data;
+        rawConversationData = response.data;
         success = true;
       } else {
         console.error('Invalid API response structure:', response.data);
         throw new Error('Invalid response structure from server');
       }
       
-      console.log('Backend conversation data:', backendConversation);
-      
+
       // Validate required fields
-      if (!backendConversation || !backendConversation.id) {
-        console.error('Missing conversation ID in response:', backendConversation);
+      if (!rawConversationData || !rawConversationData.id) {
+        console.error('Missing conversation ID in response:', rawConversationData);
         throw new Error('Missing conversation ID in response');
       }
       
-      const convertedConversation: Conversation = {
-        id: backendConversation.id,
-        participants: backendConversation.participants?.map((p: any) => ({
+      const conversation: Conversation = {
+        id: rawConversationData.id,
+        participants: rawConversationData.participants?.map((p: any) => ({
           id: p.id,
           username: p.username,
-          email: '', // Not provided by backend
+          email: '', // Not provided by API
           avatar: p.avatar,
           isOnline: p.isOnline,
           lastSeen: new Date(p.lastSeen),
         })) || [],
-        unreadCount: backendConversation.unreadCount || 0,
-        updatedAt: new Date(backendConversation.updatedAt),
-        createdAt: new Date(backendConversation.createdAt),
-        lastMessage: backendConversation.lastMessage ? {
-          id: backendConversation.lastMessage.id,
-          content: backendConversation.lastMessage.content,
-          senderId: backendConversation.lastMessage.senderId,
+        unreadCount: rawConversationData.unreadCount || 0,
+        updatedAt: new Date(rawConversationData.updatedAt),
+        createdAt: new Date(rawConversationData.createdAt),
+        lastMessage: rawConversationData.lastMessage ? {
+          id: rawConversationData.lastMessage.id,
+          content: rawConversationData.lastMessage.content,
+          senderId: rawConversationData.lastMessage.senderId,
           conversationId: conversationId,
-          timestamp: new Date(backendConversation.lastMessage.createdAt),
+          timestamp: new Date(rawConversationData.lastMessage.createdAt),
           isRead: false, // Default value
-          messageType: backendConversation.lastMessage.messageType,
+          messageType: rawConversationData.lastMessage.messageType,
         } : undefined,
       };
-      console.log('Converted conversation:', convertedConversation);
+      
       return {
         success,
-        data: convertedConversation,
+        data: conversation,
       };
     } catch (error) {
       console.error('Error fetching conversation:', error);
@@ -161,7 +160,7 @@ export class ChatService {
       
       const response = await api.get<PaginatedResponse<any>>(`/messages/conversation/${conversationId}?${params}`);
       
-      // Convert backend response to frontend format
+      // Convert API response to client format
       const convertedData = (response.data.data || []).map((msg: any) => ({
         id: msg.id,
         content: msg.content,
@@ -256,26 +255,26 @@ export class ChatService {
         messageType,
       });
       
-      // Convert backend response to frontend format
-      const backendMessage = response.data.data;
-      const convertedMessage: Message = {
-        id: backendMessage.id,
-        content: backendMessage.content,
-        senderId: backendMessage.sender.id,
-        conversationId: backendMessage.conversationId,
-        timestamp: new Date(backendMessage.createdAt),
-        isRead: backendMessage.isRead,
-        messageType: backendMessage.messageType,
-        isEdited: backendMessage.isEdited,
-        isDeleted: backendMessage.isDeleted,
-        createdAt: new Date(backendMessage.createdAt),
-        updatedAt: new Date(backendMessage.updatedAt),
-        sender: backendMessage.sender,
+      // Convert API response to client format
+      const rawMessageData = response.data.data;
+      const message: Message = {
+        id: rawMessageData.id,
+        content: rawMessageData.content,
+        senderId: rawMessageData.sender.id,
+        conversationId: rawMessageData.conversationId,
+        timestamp: new Date(rawMessageData.createdAt),
+        isRead: rawMessageData.isRead,
+        messageType: rawMessageData.messageType,
+        isEdited: rawMessageData.isEdited,
+        isDeleted: rawMessageData.isDeleted,
+        createdAt: new Date(rawMessageData.createdAt),
+        updatedAt: new Date(rawMessageData.updatedAt),
+        sender: rawMessageData.sender,
       };
       
       return {
         success: response.data.success,
-        data: convertedMessage,
+        data: message,
       };
     } catch (error) {
       console.error('Error sending message:', error);
