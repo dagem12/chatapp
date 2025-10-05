@@ -1,4 +1,3 @@
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -9,29 +8,25 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  username  String   @unique
-  password  String
-  avatar    String?
-  isOnline  Boolean  @default(false)
-  lastSeen  DateTime @default(now())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
-  sentMessages     Message[] @relation("MessageSender")
-  conversations    ConversationParticipant[]
+  id            String                    @id @default(cuid())
+  email         String                    @unique
+  username      String                    @unique
+  password      String
+  avatar        String?
+  isOnline      Boolean                   @default(false)
+  lastSeen      DateTime                  @default(now())
+  createdAt     DateTime                  @default(now())
+  updatedAt     DateTime                  @updatedAt
+  conversations ConversationParticipant[]
+  sentMessages  Message[]                 @relation("MessageSender")
 
   @@map("users")
 }
 
 model Conversation {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
+  id           String                    @id @default(cuid())
+  createdAt    DateTime                  @default(now())
+  updatedAt    DateTime                  @updatedAt
   participants ConversationParticipant[]
   messages     Message[]
 
@@ -39,35 +34,31 @@ model Conversation {
 }
 
 model ConversationParticipant {
-  id             String   @id @default(cuid())
-  joinedAt       DateTime @default(now())
-  lastReadAt     DateTime @default(now())
-
-  // Relations
+  id             String       @id @default(cuid())
+  joinedAt       DateTime     @default(now())
+  lastReadAt     DateTime     @default(now())
   userId         String
-  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   conversationId String
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, conversationId])
   @@map("conversation_participants")
 }
 
 model Message {
-  id             String   @id @default(cuid())
+  id             String       @id @default(cuid())
   content        String
-  messageType    String   @default("text") // text, image, file, etc.
-  isRead         Boolean  @default(false)
-  isEdited       Boolean  @default(false)
-  isDeleted      Boolean  @default(false)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  // Relations
+  messageType    String       @default("text")
+  isRead         Boolean      @default(false)
+  isEdited       Boolean      @default(false)
+  isDeleted      Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
   senderId       String
-  sender         User         @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
   conversationId String
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         User         @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
 
   @@map("messages")
 }

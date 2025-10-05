@@ -4,9 +4,10 @@ import { MessagesService } from './messages.service';
 import { MessagesGateway } from './messages.gateway';
 import { PrismaModule } from '../prisma/prisma.module';
 import { AuthModule } from '../auth/auth.module';
+import { RedisModule } from '../config/redis.module';
 
 @Module({
-  imports: [PrismaModule, AuthModule],
+  imports: [PrismaModule, AuthModule, RedisModule],
   controllers: [MessagesController, ConversationsController],
   providers: [MessagesService, MessagesGateway],
   exports: [MessagesService, MessagesGateway],

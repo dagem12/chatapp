@@ -9,6 +9,7 @@ import { AuthModule } from './auth/auth.module';
 import { MessagesModule } from './messages/messages.module';
 import { UsersModule } from './users/users.module';
 import { LoggerModule } from './logger/logger.module';
+import { RedisModule } from './config/redis.module';
 import { LoggingMiddleware } from './logger/middleware/logging.middleware';
 import { LoggingInterceptor } from './logger/interceptors/logging.interceptor';
 
@@ -16,9 +17,11 @@ import { LoggingInterceptor } from './logger/interceptors/logging.interceptor';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: '.env',
+      envFilePath: ['.env', './config/database.env', '../config/database.env'],
+      expandVariables: true,
     }),
     LoggerModule,
+    RedisModule,
     PrismaModule,
     HealthModule,
     AuthModule,

@@ -7,6 +7,7 @@ import {
   Logger 
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { RedisService } from '../config/redis.config';
 import { 
   CreateMessageDto, 
   UpdateMessageDto, 
@@ -29,8 +30,17 @@ import {
 @Injectable()
 export class MessagesService {
   private readonly logger = new Logger(MessagesService.name);
+  private readonly CACHE_TTL = 300; // 5 minutes
+  private readonly PARTICIPANT_CACHE_TTL = 600; // 10 minutes
+  private readonly USER_CACHE_TTL = 1800; // 30 minutes
+  private readonly CONVERSATION_CACHE_TTL = 600; // 10 minutes
+  private readonly MESSAGE_CACHE_TTL = 120; // 2 minutes
+  private readonly ONLINE_USERS_CACHE_TTL = 60; // 1 minute
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private redisService: RedisService,
+  ) {}
 
   async createMessage(userId: string, createMessageDto: CreateMessageDto): Promise<MessageCreatedResponse> {
     const { content, conversationId, messageType } = createMessageDto;
@@ -75,6 +85,18 @@ export class MessagesService {
       data: { updatedAt: new Date() },
     });
 
+    // Invalidate relevant caches with pattern-based deletion
+    await Promise.all([
+      this.redisService.delPattern(`conversation:${conversationId}*`),
+      this.redisService.delPattern(`participants:${conversationId}*`),
+      this.redisService.delPattern(`messages:${conversationId}*`),
+      this.redisService.delPattern(`user_conversations:${userId}*`),
+      // Invalidate conversation cache for all participants
+      this.invalidateConversationCacheForParticipants(conversationId),
+      // Update online users cache
+      this.updateOnlineUsersCache(),
+    ]);
+
     this.logger.log(`Message created successfully: ${message.id} by user: ${userId} in conversation: ${conversationId}`);
 
     return {
@@ -90,6 +112,15 @@ export class MessagesService {
     query: GetMessagesQueryDto,
   ): Promise<PaginatedMessagesResponse> {
     const { page = 1, limit = 20, cursor } = query;
+
+    // Check cache first for messages
+    const cacheKey = `messages:${conversationId}:${userId}:${page}:${limit}:${cursor || 'no-cursor'}`;
+    const cachedMessages = await this.redisService.get<PaginatedMessagesResponse>(cacheKey);
+    
+    if (cachedMessages) {
+      this.logger.log(`getMessages: Cache hit for conversation ${conversationId}`);
+      return cachedMessages;
+    }
 
     // Check if user is a participant in the conversation
     const participant = await this.prisma.conversationParticipant.findFirst({
@@ -152,7 +183,7 @@ export class MessagesService {
     const totalPages = Math.ceil(total / validatedLimit);
     const nextCursor = hasNext ? messages[messages.length - 1]?.id : undefined;
 
-    return {
+    const result = {
       success: true,
       message: 'Messages retrieved successfully',
       data: messages.map(message => this.mapMessageToResponse(message)),
@@ -166,6 +197,11 @@ export class MessagesService {
         cursor: nextCursor,
       },
     };
+
+    // Cache the result for 2 minutes (shorter TTL for messages as they change frequently)
+    await this.redisService.set(cacheKey, result, 120);
+
+    return result;
   }
 
   async updateMessage(
@@ -261,34 +297,54 @@ export class MessagesService {
       messageCount: messageIds.length
     });
 
-    // Verify that all messages belong to conversations where the user is a participant
-    const messages = await this.prisma.message.findMany({
-      where: {
-        id: { in: messageIds },
-        isDeleted: false,
-      },
-      include: {
-        conversation: {
-          include: {
-            participants: {
-              where: { userId },
+    // Check if this operation is already in progress to prevent duplicates
+    const operationKey = `mark_read:${userId}:${messageIds.sort().join(',')}`;
+    const isInProgress = await this.redisService.exists(operationKey);
+    
+    if (isInProgress) {
+      this.logger.log(`markMessagesAsRead: Operation already in progress for user ${userId}, skipping`);
+      return {
+        success: true,
+        message: 'Messages already being processed',
+        data: {
+          markedCount: 0,
+          messageIds: [],
+        },
+      };
+    }
+
+    // Set operation lock for 30 seconds
+    await this.redisService.set(operationKey, true, 30);
+
+    try {
+      // Verify that all messages belong to conversations where the user is a participant
+      const messages = await this.prisma.message.findMany({
+        where: {
+          id: { in: messageIds },
+          isDeleted: false,
+        },
+        include: {
+          conversation: {
+            include: {
+              participants: {
+                where: { userId },
+              },
             },
           },
         },
-      },
-    });
+      });
 
-    // Filter messages that the user has access to
-    const accessibleMessages = messages.filter(message => 
-      message.conversation.participants.length > 0
-    );
+      // Filter messages that the user has access to
+      const accessibleMessages = messages.filter(message => 
+        message.conversation.participants.length > 0
+      );
 
-    this.logger.log(`markMessagesAsRead: Found ${messages.length} messages, ${accessibleMessages.length} accessible`);
+      this.logger.log(`markMessagesAsRead: Found ${messages.length} messages, ${accessibleMessages.length} accessible`);
 
-    if (accessibleMessages.length === 0) {
-      this.logger.warn(`markMessagesAsRead: No accessible messages found for user ${userId}`);
-      throw new ForbiddenException('No accessible messages found');
-    }
+      if (accessibleMessages.length === 0) {
+        this.logger.warn(`markMessagesAsRead: No accessible messages found for user ${userId}`);
+        throw new ForbiddenException('No accessible messages found');
+      }
 
       // Mark messages as read (only update if not already read)
       this.logger.log(`markMessagesAsRead: Updating ${accessibleMessages.length} messages to isRead=true`);
@@ -304,39 +360,47 @@ export class MessagesService {
       
       this.logger.log(`markMessagesAsRead: Updated ${updateResult.count} messages in database`);
       
-      // Always return success even if no messages were updated (they were already read)
-      // This ensures read receipts are sent regardless of current read status
+      // Update lastReadAt for the user in each conversation
+      const conversationIds = [...new Set(accessibleMessages.map(m => m.conversationId))];
+      
+      await Promise.all(
+        conversationIds.map(conversationId =>
+          this.prisma.conversationParticipant.updateMany({
+            where: {
+              userId,
+              conversationId,
+            },
+            data: {
+              lastReadAt: new Date(),
+            },
+          })
+        )
+      );
 
-    // Update lastReadAt for the user in each conversation
-    const conversationIds = [...new Set(accessibleMessages.map(m => m.conversationId))];
-    
-    await Promise.all(
-      conversationIds.map(conversationId =>
-        this.prisma.conversationParticipant.updateMany({
-          where: {
-            userId,
-            conversationId,
-          },
-          data: {
-            lastReadAt: new Date(),
-          },
-        })
-      )
-    );
+      // Invalidate conversation cache for affected conversations
+      await Promise.all(
+        conversationIds.map(conversationId =>
+          this.redisService.del(`conversation:${conversationId}`)
+        )
+      );
 
-    this.logger.log(`markMessagesAsRead: Successfully completed for user ${userId}`, {
-      markedCount: updateResult.count,
-      messageIds: accessibleMessages.map(m => m.id)
-    });
-
-    return {
-      success: true,
-      message: 'Messages marked as read successfully',
-      data: {
+      this.logger.log(`markMessagesAsRead: Successfully completed for user ${userId}`, {
         markedCount: updateResult.count,
-        messageIds: accessibleMessages.map(m => m.id),
-      },
-    };
+        messageIds: accessibleMessages.map(m => m.id)
+      });
+
+      return {
+        success: true,
+        message: 'Messages marked as read successfully',
+        data: {
+          markedCount: updateResult.count,
+          messageIds: accessibleMessages.map(m => m.id),
+        },
+      };
+    } finally {
+      // Remove operation lock
+      await this.redisService.del(operationKey);
+    }
   }
 
   async createConversation(
@@ -496,6 +560,15 @@ export class MessagesService {
   }
 
   async getConversationById(userId: string, conversationId: string): Promise<ConversationResponse> {
+    // Check cache first
+    const cacheKey = `conversation:${conversationId}:${userId}`;
+    const cachedConversation = await this.redisService.get<ConversationResponse>(cacheKey);
+    
+    if (cachedConversation) {
+      this.logger.log(`getConversationById: Cache hit for conversation ${conversationId}`);
+      return cachedConversation;
+    }
+
     const conversation = await this.prisma.conversation.findFirst({
       where: {
         id: conversationId,
@@ -537,7 +610,12 @@ export class MessagesService {
       throw new NotFoundException('Conversation not found');
     }
 
-    return this.mapConversationToResponse(conversation, userId);
+    const result = this.mapConversationToResponse(conversation, userId);
+    
+    // Cache the result for 5 minutes
+    await this.redisService.set(cacheKey, result, this.CACHE_TTL);
+
+    return result;
   }
 
   private async findExistingConversation(participantIds: string[]) {
@@ -719,6 +797,18 @@ export class MessagesService {
 
   async getConversationParticipants(conversationId: string): Promise<{ success: boolean; data?: any[]; error?: string }> {
     try {
+      // Check cache first
+      const cacheKey = `participants:${conversationId}`;
+      const cachedParticipants = await this.redisService.get<any[]>(cacheKey);
+      
+      if (cachedParticipants) {
+        this.logger.log(`getConversationParticipants: Cache hit for conversation ${conversationId}`);
+        return {
+          success: true,
+          data: cachedParticipants,
+        };
+      }
+
       const participants = await this.prisma.conversationParticipant.findMany({
         where: {
           conversationId,
@@ -727,6 +817,9 @@ export class MessagesService {
           userId: true,
         },
       });
+
+      // Cache the result
+      await this.redisService.set(cacheKey, participants, this.PARTICIPANT_CACHE_TTL);
 
       return {
         success: true,
@@ -738,6 +831,228 @@ export class MessagesService {
         success: false,
         error: 'Failed to get conversation participants',
       };
+    }
+  }
+
+  private async invalidateConversationCacheForParticipants(conversationId: string): Promise<void> {
+    try {
+      const participants = await this.prisma.conversationParticipant.findMany({
+        where: { conversationId },
+        select: { userId: true },
+      });
+
+      // Invalidate conversation cache for each participant
+      await Promise.all(
+        participants.map(participant =>
+          this.redisService.delPattern(`conversation:${conversationId}:${participant.userId}*`)
+        )
+      );
+    } catch (error) {
+      this.logger.error('Error invalidating conversation cache for participants:', error);
+    }
+  }
+
+  // Advanced caching methods for performance optimization
+  async cacheUserConversations(userId: string, conversations: any[]): Promise<void> {
+    const cacheKey = `user_conversations:${userId}`;
+    await this.redisService.set(cacheKey, conversations, this.USER_CACHE_TTL);
+  }
+
+  async getCachedUserConversations(userId: string): Promise<any[] | null> {
+    const cacheKey = `user_conversations:${userId}`;
+    return await this.redisService.get<any[]>(cacheKey);
+  }
+
+  async cacheOnlineUsers(onlineUsers: string[]): Promise<void> {
+    const cacheKey = 'online_users';
+    await this.redisService.set(cacheKey, onlineUsers, this.ONLINE_USERS_CACHE_TTL);
+  }
+
+  async getCachedOnlineUsers(): Promise<string[] | null> {
+    const cacheKey = 'online_users';
+    return await this.redisService.get<string[]>(cacheKey);
+  }
+
+  async updateOnlineUsersCache(): Promise<void> {
+    try {
+      // Get online users from database
+      const onlineUsers = await this.prisma.user.findMany({
+        where: { isOnline: true },
+        select: { id: true },
+      });
+
+      const userIds = onlineUsers.map(user => user.id);
+      await this.cacheOnlineUsers(userIds);
+    } catch (error) {
+      this.logger.error('Error updating online users cache:', error);
+    }
+  }
+
+  async cacheUserSession(userId: string, sessionData: any): Promise<void> {
+    const cacheKey = `user_session:${userId}`;
+    await this.redisService.hset('user_sessions', userId, sessionData);
+  }
+
+  async getCachedUserSession(userId: string): Promise<any | null> {
+    return await this.redisService.hget('user_sessions', userId);
+  }
+
+  async removeUserSession(userId: string): Promise<void> {
+    await this.redisService.hdel('user_sessions', [userId]);
+  }
+
+  async cacheMessage(message: any): Promise<void> {
+    const cacheKey = `message:${message.id}`;
+    await this.redisService.set(cacheKey, message, this.MESSAGE_CACHE_TTL);
+  }
+
+  async getCachedMessage(messageId: string): Promise<any | null> {
+    const cacheKey = `message:${messageId}`;
+    return await this.redisService.get(cacheKey);
+  }
+
+  async cacheConversationMessages(conversationId: string, messages: any[]): Promise<void> {
+    const cacheKey = `conversation_messages:${conversationId}`;
+    await this.redisService.set(cacheKey, messages, this.MESSAGE_CACHE_TTL);
+  }
+
+  async getCachedConversationMessages(conversationId: string): Promise<any[] | null> {
+    const cacheKey = `conversation_messages:${conversationId}`;
+    return await this.redisService.get<any[]>(cacheKey);
+  }
+
+  async cacheUserPresence(userId: string, presenceData: any): Promise<void> {
+    const cacheKey = `user_presence:${userId}`;
+    await this.redisService.set(cacheKey, presenceData, this.ONLINE_USERS_CACHE_TTL);
+  }
+
+  async getCachedUserPresence(userId: string): Promise<any | null> {
+    const cacheKey = `user_presence:${userId}`;
+    return await this.redisService.get(cacheKey);
+  }
+
+  async removeUserPresence(userId: string): Promise<void> {
+    const cacheKey = `user_presence:${userId}`;
+    await this.redisService.del(cacheKey);
+  }
+
+  // Batch operations for better performance
+  async batchCacheMessages(messages: any[]): Promise<void> {
+    if (messages.length === 0) return;
+
+    const cachePairs: Record<string, any> = {};
+    messages.forEach(message => {
+      cachePairs[`message:${message.id}`] = message;
+    });
+
+    await this.redisService.mset(cachePairs, this.MESSAGE_CACHE_TTL);
+  }
+
+  async batchGetCachedMessages(messageIds: string[]): Promise<any[]> {
+    if (messageIds.length === 0) return [];
+
+    const cacheKeys = messageIds.map(id => `message:${id}`);
+    const cachedMessages = await this.redisService.mget<any>(cacheKeys);
+    
+    return cachedMessages.filter(message => message !== null);
+  }
+
+  // Cache warming methods
+  async warmupUserCache(userId: string): Promise<void> {
+    try {
+      // Warm up user conversations cache
+      const conversations = await this.getConversations(userId, { page: 1, limit: 50 });
+      if (conversations.success && conversations.data) {
+        await this.cacheUserConversations(userId, conversations.data);
+      }
+
+      // Warm up user session cache
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          id: true,
+          username: true,
+          email: true,
+          avatar: true,
+          isOnline: true,
+          lastSeen: true,
+        },
+      });
+
+      if (user) {
+        await this.cacheUserSession(userId, user);
+      }
+    } catch (error) {
+      this.logger.error(`Error warming up user cache for ${userId}:`, error);
+    }
+  }
+
+  async warmupConversationCache(conversationId: string): Promise<void> {
+    try {
+      // Get conversation participants
+      const participants = await this.getConversationParticipants(conversationId);
+      if (participants.success && participants.data) {
+        // Cache participants for each user
+        for (const participant of participants.data) {
+          await this.redisService.set(
+            `participants:${conversationId}:${participant.userId}`,
+            participants.data,
+            this.PARTICIPANT_CACHE_TTL
+          );
+        }
+      }
+
+      // Get recent messages
+      const messages = await this.getMessages(participants.data?.[0]?.userId || '', conversationId, {
+        page: 1,
+        limit: 20,
+      });
+
+      if (messages.success && messages.data) {
+        await this.cacheConversationMessages(conversationId, messages.data);
+        await this.batchCacheMessages(messages.data);
+      }
+    } catch (error) {
+      this.logger.error(`Error warming up conversation cache for ${conversationId}:`, error);
+    }
+  }
+
+  // Cache statistics and monitoring
+  async getCacheStats(): Promise<any> {
+    try {
+      const stats = {
+        redisConnected: this.redisService.isConnected(),
+        ping: await this.redisService.ping(),
+        info: await this.redisService.info(),
+      };
+      return stats;
+    } catch (error) {
+      this.logger.error('Error getting cache stats:', error);
+      return { error: 'Failed to get cache stats' };
+    }
+  }
+
+  // Cache cleanup methods
+  async cleanupExpiredCaches(): Promise<void> {
+    try {
+      // Redis automatically handles TTL expiration, but we can clean up specific patterns
+      const patterns = [
+        'user_session:*',
+        'user_presence:*',
+        'message:*',
+        'conversation_messages:*',
+      ];
+
+      for (const pattern of patterns) {
+        // Get keys matching pattern and check if they're expired
+        const keys = await this.redisService.getRedisClient().keys(pattern);
+        if (keys.length > 0) {
+          // Redis will automatically expire keys based on TTL
+          this.logger.log(`Found ${keys.length} keys matching pattern ${pattern}`);
+        }
+      }
+    } catch (error) {
+      this.logger.error('Error cleaning up expired caches:', error);
     }
   }
 }

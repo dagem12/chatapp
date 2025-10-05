@@ -15,6 +15,8 @@ import { MessagesService } from './messages.service';
 import { AuthService } from '../auth/auth.service';
 import { CreateMessageDto } from './dto/message.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RedisService } from '../config/redis.config';
+import { createAdapter } from '@socket.io/redis-adapter';
 
 interface AuthenticatedSocket extends Socket {
   userId?: string;
@@ -47,17 +49,189 @@ export class MessagesGateway
     private readonly messagesService: MessagesService,
     private readonly jwtService: JwtService,
     private readonly authService: AuthService,
+    private readonly redisService: RedisService,
   ) {}
 
-  afterInit(server: Server) {
+  async afterInit(server: Server) {
     this.server = server;
     this.logger.log('WebSocket Gateway initialized with server instance');
-    this.logger.log('Server instance details:', {
-      hasServer: !!this.server,
-      hasSockets: !!this.server?.sockets,
-      hasAdapter: !!this.server?.sockets?.adapter,
-      hasRooms: !!this.server?.sockets?.adapter?.rooms
-    });
+    
+    // Initialize Redis adapter with proper error handling and timing
+    await this.initializeRedisAdapter(server);
+  }
+
+  private async initializeRedisAdapter(server: Server) {
+    const maxRetries = 10;
+    const retryDelay = 1000; // 1 second
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        this.logger.log(`Starting Redis adapter initialization (attempt ${attempt}/${maxRetries})...`);
+        
+        // Check if Redis service is available and ready
+        if (!this.redisService || !this.redisService.isServiceReady) {
+          this.logger.warn(`Redis service not available or not ready (attempt ${attempt}/${maxRetries})`);
+          if (attempt < maxRetries) {
+            await new Promise(resolve => setTimeout(resolve, retryDelay));
+            continue;
+          }
+          this.logger.error('Max retries reached - Redis service not ready');
+          return;
+        }
+        
+        // Wait for Redis clients to be ready using the new method
+        const clientsReady = await this.redisService.waitForClientsReady(5000);
+        if (!clientsReady) {
+          this.logger.warn(`Redis clients not ready (attempt ${attempt}/${maxRetries})`);
+          if (attempt < maxRetries) {
+            await new Promise(resolve => setTimeout(resolve, retryDelay));
+            continue;
+          }
+          this.logger.error('Max retries reached - Redis clients not ready');
+          return;
+        }
+        
+        // Get Redis clients
+        const { pubClient, subClient } = this.redisService.getClients();
+        
+        if (!pubClient || !subClient) {
+          this.logger.warn(`Redis clients not available (attempt ${attempt}/${maxRetries})`);
+          if (attempt < maxRetries) {
+            await new Promise(resolve => setTimeout(resolve, retryDelay));
+            continue;
+          }
+          this.logger.error('Max retries reached - Redis clients not available');
+          return;
+        }
+        
+        // Verify clients are connected and ready
+        if (!pubClient.isOpen || !subClient.isOpen) {
+          this.logger.warn(`Redis clients are not connected (attempt ${attempt}/${maxRetries})`);
+          if (attempt < maxRetries) {
+            await new Promise(resolve => setTimeout(resolve, retryDelay));
+            continue;
+          }
+          this.logger.error('Max retries reached - Redis clients not connected');
+          return;
+        }
+        
+        // Test Redis connection
+        try {
+          await pubClient.ping();
+          await subClient.ping();
+          this.logger.log('Redis clients ping test successful');
+        } catch (pingError) {
+          this.logger.error(`Redis clients ping test failed (attempt ${attempt}/${maxRetries}):`, pingError);
+          if (attempt < maxRetries) {
+            await new Promise(resolve => setTimeout(resolve, retryDelay));
+            continue;
+          }
+          this.logger.error('Max retries reached - Redis clients ping test failed');
+          return;
+        }
+        
+        // Create Redis adapter with error handling
+        this.logger.log('Creating Redis adapter...');
+        let redisAdapter;
+        try {
+          redisAdapter = createAdapter(pubClient, subClient, {
+            key: 'chat-app-socket.io', // Custom key to avoid conflicts
+            requestsTimeout: 10000,
+          });
+          this.logger.log('Redis adapter created successfully');
+        } catch (adapterError) {
+          this.logger.error(`Failed to create Redis adapter (attempt ${attempt}/${maxRetries}):`, adapterError);
+          if (attempt < maxRetries) {
+            await new Promise(resolve => setTimeout(resolve, retryDelay));
+            continue;
+          }
+          this.logger.error('Max retries reached - Failed to create Redis adapter');
+          return;
+        }
+        
+        // Set the adapter on the server with proper error handling
+        this.logger.log('Setting Redis adapter on server...');
+        this.logger.log('Server object details:', JSON.stringify({
+          hasServer: !!server,
+          hasSockets: !!server?.sockets,
+          hasAdapter: !!server?.sockets?.adapter,
+          serverType: server?.constructor?.name,
+          socketsType: server?.sockets?.constructor?.name,
+          adapterType: server?.sockets?.adapter?.constructor?.name
+        }, null, 2));
+        try {
+          // Log additional server information before setting adapter
+          this.logger.log('Server methods available:', JSON.stringify(Object.getOwnPropertyNames(server), null, 2));
+          this.logger.log('Server.sockets methods available:', JSON.stringify(server.sockets ? Object.getOwnPropertyNames(server.sockets) : 'No sockets', null, 2));
+          
+          // The server parameter is actually a Namespace, we need to get the actual Server instance
+          const actualServer = (server as any).server;
+          this.logger.log('Namespace type:', server?.constructor?.name);
+          this.logger.log('Actual server type:', actualServer?.constructor?.name);
+          this.logger.log('Actual server has adapter method:', typeof actualServer?.adapter);
+          
+          if (!actualServer) {
+            throw new Error('Could not access actual Socket.IO Server instance from Namespace');
+          }
+          
+          // Use the actual Socket.IO Server instance
+          this.logger.log('Calling actualServer.adapter() with Redis adapter...');
+          actualServer.adapter(redisAdapter);
+          this.logger.log('Redis adapter set on actual server successfully');
+          
+          // Verify the adapter was set
+          this.logger.log('Adapter verification:', JSON.stringify({
+            hasAdapter: !!actualServer.sockets?.adapter,
+            adapterType: actualServer.sockets?.adapter?.constructor?.name,
+            adapterFunction: typeof actualServer.sockets?.adapter,
+            adapterMethods: actualServer.sockets?.adapter ? Object.getOwnPropertyNames(actualServer.sockets.adapter) : null
+          }, null, 2));
+          
+        } catch (adapterSetError) {
+          this.logger.error(`Failed to set Redis adapter on server (attempt ${attempt}/${maxRetries}):`);
+          this.logger.error('Error details:', JSON.stringify({
+            message: adapterSetError?.message,
+            name: adapterSetError?.name,
+            stack: adapterSetError?.stack,
+            code: adapterSetError?.code,
+            errno: adapterSetError?.errno,
+            syscall: adapterSetError?.syscall,
+            address: adapterSetError?.address,
+            port: adapterSetError?.port,
+            type: typeof adapterSetError,
+            constructor: adapterSetError?.constructor?.name
+          }, null, 2));
+          this.logger.error('Full error object:', adapterSetError);
+          if (attempt < maxRetries) {
+            await new Promise(resolve => setTimeout(resolve, retryDelay));
+            continue;
+          }
+          this.logger.error('Max retries reached - Failed to set Redis adapter on server');
+          throw adapterSetError;
+        }
+        
+        // Setup Redis subscriptions for cross-instance communication
+        await this.setupRedisSubscriptions();
+        
+        this.logger.log('Redis adapter initialization completed successfully');
+        return; // Success - exit the retry loop
+        
+      } catch (error) {
+        this.logger.error(`Redis adapter initialization failed (attempt ${attempt}/${maxRetries}):`, {
+          message: error?.message || 'Unknown error',
+          stack: error?.stack,
+          name: error?.name
+        });
+        
+        if (attempt < maxRetries) {
+          this.logger.log(`Retrying in ${retryDelay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, retryDelay));
+        } else {
+          this.logger.error('Max retries reached - Redis adapter initialization failed');
+          this.logger.warn('Continuing without Redis adapter - single instance mode');
+        }
+      }
+    }
   }
 
   async handleConnection(client: AuthenticatedSocket) {
@@ -90,13 +264,30 @@ export class MessagesGateway
 
       this.logger.log(`User ${client.user.username} connected with socket ${client.id}`);
       
-      // Update user online status in database
-      await this.authService.updateOnlineStatus(client.userId!, true);
+      // Update user online status in database and cache
+      await Promise.all([
+        this.authService.updateOnlineStatus(client.userId!, true),
+        this.messagesService.cacheUserPresence(client.userId!, {
+          isOnline: true,
+          lastSeen: new Date().toISOString(),
+          socketId: client.id,
+        }),
+      ]);
+      
+      // Warm up user cache for better performance
+      await this.messagesService.warmupUserCache(client.userId!);
       
       // Automatically join user to all their conversation rooms
       await this.joinUserToAllConversations(client);
       
-      // Notify other users that this user is online
+      // Notify other users that this user is online via Redis pub/sub
+      await this.redisService.publish('user_online', {
+        userId: client.userId,
+        username: client.user.username,
+        timestamp: new Date().toISOString(),
+      });
+      
+      // Also emit locally for immediate response
       client.broadcast.emit('userOnline', {
         userId: client.userId,
         username: client.user.username,
@@ -128,10 +319,21 @@ export class MessagesGateway
         if (userSockets.size === 0) {
           this.userSockets.delete(client.userId);
           
-          // Update user offline status in database
-          await this.authService.updateOnlineStatus(client.userId, false);
+          // Update user offline status in database and cache
+          await Promise.all([
+            this.authService.updateOnlineStatus(client.userId, false),
+            this.messagesService.removeUserPresence(client.userId),
+            this.messagesService.removeUserSession(client.userId),
+          ]);
           
-          // Notify other users that this user is offline
+          // Notify other users that this user is offline via Redis pub/sub
+          await this.redisService.publish('user_offline', {
+            userId: client.userId,
+            username: client.user?.username,
+            timestamp: new Date().toISOString(),
+          });
+          
+          // Also emit locally for immediate response
           client.broadcast.emit('userOffline', {
             userId: client.userId,
             username: client.user?.username,
@@ -249,6 +451,9 @@ export class MessagesGateway
 
       const message = messageResponse.data;
       
+      // Cache the message for quick access
+      await this.messagesService.cacheMessage(message);
+      
       this.logger.log(`Created message:`, {
         id: message.id,
         content: message.content,
@@ -321,6 +526,13 @@ export class MessagesGateway
         this.logger.warn('Error getting room info:', error.message);
       }
       
+      // Publish message to Redis for cross-instance synchronization
+      await this.redisService.publish('new_message', {
+        ...emitData,
+        senderId: client.userId,
+        tempId: createMessageDto.tempId,
+      });
+
       // Try room-based broadcasting first
       this.logger.log(`📤 Broadcasting newMessage to room conversation:${createMessageDto.conversationId}:`, {
         messageId: message.id,
@@ -509,6 +721,9 @@ export class MessagesGateway
           recipientCount
         });
         
+          // Publish read receipt to Redis for cross-instance synchronization
+          await this.redisService.publish('messages_read', readReceiptData);
+        
           // Send read receipt to ALL participants in the conversation (including the sender)
           // This allows the sender to see double checkmarks when their messages are read
           try {
@@ -586,14 +801,19 @@ export class MessagesGateway
 
       const { conversationId, isTyping } = data;
 
-      // Broadcast typing status to other participants
-      client.to(`conversation:${conversationId}`).emit('userTyping', {
+      const typingData = {
         userId: client.userId,
         username: client.user?.username,
         conversationId,
         isTyping,
         timestamp: new Date().toISOString(),
-      });
+      };
+
+      // Publish typing status to Redis for cross-instance synchronization
+      await this.redisService.publish('user_typing', typingData);
+
+      // Broadcast typing status to other participants locally
+      client.to(`conversation:${conversationId}`).emit('userTyping', typingData);
 
     } catch (error) {
       this.logger.error('Error handling typing status:', error);
@@ -753,6 +973,75 @@ export class MessagesGateway
       }
     } catch (error) {
       this.logger.error('Error ensuring participants are joined:', error);
+    }
+  }
+
+  // Setup Redis subscriptions for cross-instance communication
+  private async setupRedisSubscriptions() {
+    try {
+      // Subscribe to new message events
+      await this.redisService.subscribe('new_message', (data) => {
+        this.logger.log('Received new_message from Redis:', data);
+        
+        // Don't broadcast to the sender's instance to avoid duplicates
+        if (data.senderId && this.connectedUsers.has(data.senderId)) {
+          this.logger.log('Skipping message broadcast to sender instance');
+          return;
+        }
+
+        // Broadcast to all sockets in the conversation room
+        if (this.server) {
+          this.server.to(`conversation:${data.conversationId}`).emit('newMessage', {
+            message: data.message,
+            conversationId: data.conversationId,
+            timestamp: data.timestamp,
+          });
+        }
+      });
+
+      // Subscribe to user online events
+      await this.redisService.subscribe('user_online', (data) => {
+        this.logger.log('Received user_online from Redis:', data);
+        
+        // Broadcast to all connected clients
+        if (this.server) {
+          this.server.emit('userOnline', data);
+        }
+      });
+
+      // Subscribe to user offline events
+      await this.redisService.subscribe('user_offline', (data) => {
+        this.logger.log('Received user_offline from Redis:', data);
+        
+        // Broadcast to all connected clients
+        if (this.server) {
+          this.server.emit('userOffline', data);
+        }
+      });
+
+      // Subscribe to read receipt events
+      await this.redisService.subscribe('messages_read', (data) => {
+        this.logger.log('Received messages_read from Redis:', data);
+        
+        // Broadcast to all sockets in the conversation room
+        if (this.server) {
+          this.server.to(`conversation:${data.conversationId}`).emit('messagesRead', data);
+        }
+      });
+
+      // Subscribe to typing events
+      await this.redisService.subscribe('user_typing', (data) => {
+        this.logger.log('Received user_typing from Redis:', data);
+        
+        // Broadcast to all sockets in the conversation room except sender
+        if (this.server) {
+          this.server.to(`conversation:${data.conversationId}`).emit('userTyping', data);
+        }
+      });
+
+      this.logger.log('Redis subscriptions setup completed');
+    } catch (error) {
+      this.logger.error('Error setting up Redis subscriptions:', error);
     }
   }
 }
