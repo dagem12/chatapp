@@ -1,6 +1,6 @@
 # Chat App
 
-A modern, real-time chat application built with React, TypeScript, NestJS, PostgreSQL, and Redis. Features real-time messaging, user authentication, responsive design, and scalable architecture.
+a real-time chat application built with React, TypeScript, NestJS, PostgreSQL, and Redis. Features real-time messaging, user authentication, responsive design, and scalable architecture.
 
 ## Overview
 
@@ -52,6 +52,16 @@ This is a full-stack chat application that provides real-time messaging capabili
 - **JWT** for authentication
 - **Winston** for logging
 - **Docker** for containerization
+
+## Documentation
+
+### Frontend Documentation
+For detailed frontend setup, development, and deployment instructions, see:
+**[Frontend README](frontend/README.md)**
+
+### Backend Documentation
+For detailed backend setup, API documentation, and deployment instructions, see:
+**[Backend README](backend/README.md)**
 
 ## Quick Start
 
@@ -122,9 +132,6 @@ This is a full-stack chat application that provides real-time messaging capabili
 
 ### Conversation Management
 
-#### Conversation Sidebar
-![Conversation Sidebar](frontend/screenshots/Conversation_Sidebar.png)
-*Conversation list with search, unread counts, and online status*
 
 #### Search for Messages
 ![Search Messages](frontend/screenshots/search_for_message.png)
@@ -160,22 +167,13 @@ Chatapp/
 │   ├── src/                 # Source code
 │   ├── prisma/              # Database schema and migrations
 │   ├── scripts/             # Utility scripts
-│   ├── docs/                # Documentation
 │   ├── package.json         # Backend dependencies
 │   └── README.md            # Backend documentation
 ├── docker-compose.yml       # Docker orchestration
 └── README.md               # This file
 ```
 
-## Documentation
 
-### Frontend Documentation
-For detailed frontend setup, development, and deployment instructions, see:
-**[Frontend README](frontend/README.md)**
-
-### Backend Documentation
-For detailed backend setup, API documentation, and deployment instructions, see:
-**[Backend README](backend/README.md)**
 
 ## API Endpoints
 
