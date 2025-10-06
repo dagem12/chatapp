@@ -174,9 +174,9 @@ docker-compose exec backend npm run db:seed
 
 ### 5. Access the Application
 
-- **API**: http://localhost:3002
-- **Health Check**: http://localhost:3002/health
-- **API Documentation**: http://localhost:3002/api (Swagger UI)
+- **API**: http://ip:port
+- **Health Check**: http://ip:port/health
+- **API Documentation**: http://ip:port/api (Swagger UI)
 
 ## Local Development Setup
 
@@ -216,7 +216,7 @@ npm run start:debug
 
 | Service | Port | Description |
 |---------|------|-------------|
-| Backend API | 3002 | Main application API |
+| Backend API | 3000 | Main application API |
 | PostgreSQL | 5433 | Database (non-standard port) |
 | Redis | 6380 | Cache (non-standard port) |
 
@@ -299,7 +299,7 @@ Authorization: Bearer <your-jwt-token>
 
 ```bash
 # 1. Register a new user
-curl -X POST http://localhost:3002/auth/register \
+curl -X POST http://localhost:3000/auth/register \
   -H "Content-Type: application/json" \
   -d '{
     "email": "user@example.com",
@@ -308,7 +308,7 @@ curl -X POST http://localhost:3002/auth/register \
   }'
 
 # 2. Login
-curl -X POST http://localhost:3002/auth/login \
+curl -X POST http://localhost:3000/auth/login \
   -H "Content-Type: application/json" \
   -d '{
     "email": "user@example.com",
@@ -316,7 +316,7 @@ curl -X POST http://localhost:3002/auth/login \
   }'
 
 # 3. Use the token for authenticated requests
-curl -X GET http://localhost:3002/auth/me \
+curl -X GET http://localhost:3000/auth/me \
   -H "Authorization: Bearer <your-jwt-token>"
 ```
 
@@ -359,9 +359,9 @@ upstream backend {
     # Use IP hash for sticky sessions
     ip_hash;
     
-    server 127.0.0.1:3002;
-    server 127.0.0.1:3003;
-    server 127.0.0.1:3004;
+    server server1:port;
+    server server2:port;
+    server server3:port;
 }
 
 server {
@@ -395,37 +395,6 @@ server {
 }
 ```
 
-#### Alternative Sticky Session Methods
-
-1. **IP Hash** (Recommended for WebSockets):
-   ```nginx
-   upstream backend {
-       ip_hash;  # Routes based on client IP
-       server 127.0.0.1:3002;
-       server 127.0.0.1:3003;
-   }
-   ```
-
-2. **Cookie-based Sticky Sessions**:
-   ```nginx
-   upstream backend {
-       server 127.0.0.1:3002;
-       server 127.0.0.1:3003;
-   }
-   
-   location / {
-       proxy_pass http://backend;
-       proxy_cookie_path / "/; Secure; HttpOnly; SameSite=strict";
-   }
-   ```
-
-3. **HAProxy Configuration**:
-   ```
-   backend chat_backend
-       balance source  # IP-based sticky sessions
-       server app1 127.0.0.1:3002 check
-       server app2 127.0.0.1:3003 check
-   ```
 
 #### Why Sticky Sessions Are Important
 
@@ -483,7 +452,7 @@ npm run pm2:startup
 | Variable | Description | Default | Required |
 |----------|-------------|---------|----------|
 | `NODE_ENV` | Environment mode | `production` | No |
-| `PORT` | Application port | `3002` | No |
+| `PORT` | Application port | `3000` | No |
 | `DATABASE_URL` | PostgreSQL connection string | - | Yes |
 | `POSTGRES_DB` | Database name | `chat_app` | No |
 | `POSTGRES_USER` | Database user | `postgres` | No |
@@ -584,7 +553,7 @@ npm run pm2:monitor    # Open PM2 monitor
 3. **Port Already in Use**
    ```bash
    # Check what's using the port
-   netstat -tulpn | grep :3002
+   netstat -tulpn | grep :3000
    
    # Kill the process or change the port in .env
    ```
@@ -608,26 +577,3 @@ docker-compose logs redis
 docker-compose exec backend sh
 ```
 
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests for new functionality
-5. Ensure all tests pass
-6. Submit a pull request
-
-## License
-
-This project is licensed under the MIT License.
-
-## Support
-
-For support and questions:
-- Create an issue in the repository
-- Check the troubleshooting section
-- Review the API documentation at `/api`
-
----
-
-**Happy Chatting!**

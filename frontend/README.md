@@ -2,7 +2,7 @@
 
 A modern, real-time chat application built with React, TypeScript, Material-UI, and Socket.IO.
 
-## 🚀 Features
+## Features
 
 - **Real-time messaging** with Socket.IO
 - **User authentication** (Login/Register) with JWT
@@ -14,7 +14,7 @@ A modern, real-time chat application built with React, TypeScript, Material-UI, 
 - **Message history** with pagination
 - **User search** to start new conversations
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 - **React 19** with TypeScript
 - **Material-UI (MUI)** for UI components
@@ -23,7 +23,7 @@ A modern, real-time chat application built with React, TypeScript, Material-UI, 
 - **React Router** for navigation
 - **Vite** for fast development and building
 
-## 📦 Installation
+## Installation
 
 ### Prerequisites
 
@@ -60,7 +60,7 @@ A modern, real-time chat application built with React, TypeScript, Material-UI, 
 
    The app will be available at `http://localhost:5173`
 
-## 🏗️ Build for Production
+## Build for Production
 
 ```bash
 # Build the app
@@ -70,7 +70,7 @@ npm run build
 npm run preview
 ```
 
-## 🐳 Docker Deployment
+## Docker Deployment
 
 ### Using Docker
 
@@ -100,29 +100,84 @@ docker-compose logs -f
 docker-compose down
 ```
 
-## 📱 Screenshots
+## Screenshots
 
-### Login Screen
-![Login Screen](screenshots/login.png)
+### Authentication
+
+#### Login Screen - Web
+![Login Web](screenshots/Login_web.png)
 *Clean and modern login interface with form validation*
 
-### Register Screen
-![Register Screen](screenshots/register.png)
+#### Login Screen - Mobile
+![Login Mobile](screenshots/Login_Mobile.png)
+*Responsive mobile login interface*
+
+#### Register Screen - Web
+![Register Web](screenshots/Register_web.png)
 *User registration with password confirmation and validation*
 
-### Chat Interface - Desktop
-![Chat Desktop](screenshots/chat-desktop.png)
+#### Register Screen - Mobile
+![Register Mobile](screenshots/Register_Mobile.png)
+*Mobile registration interface*
+
+### Chat Interface
+
+#### Chat Screen - Web
+![Chat Web](screenshots/Chat_screen_web.png)
 *Full desktop chat interface with sidebar and main chat window*
 
-### Chat Interface - Mobile
-![Chat Mobile](screenshots/chat-mobile.png)
+#### Chat Screen - Web (Alternative View)
+![Chat Web 2](screenshots/Chat_screen2_web.png)
+*Desktop chat interface showing conversation details*
+
+#### Chat Screen - Mobile
+![Chat Mobile](screenshots/Chat_Screen_Mobile.png)
 *Responsive mobile interface with collapsible sidebar*
 
-### Conversation Sidebar
-![Sidebar](screenshots/sidebar.png)
+### Conversation Management
+
+#### Conversation Sidebar
+![Conversation Sidebar](screenshots/Conversation_Sidebar.png)
 *Conversation list with search, unread counts, and online status*
 
-## 🏗️ Project Structure
+#### Search for Messages
+![Search Messages](screenshots/search_for_message.png)
+*Search functionality to find specific messages in conversations*
+
+### New Conversation
+
+#### Start New Conversation - Web
+![New Chat Web](screenshots/Start_New_Conversation_web.png)
+*Create new conversation interface on desktop*
+
+#### Start New Conversation - Mobile
+![New Chat Mobile](screenshots/Start_New_Conversation_Mobile.png)
+*Mobile interface for starting new conversations*
+
+#### User Search - Web
+![User Search Web](screenshots/Start_New_Conversation_Search_web.png)
+*Search for users to start conversations on desktop*
+
+#### User Search - Mobile
+![User Search Mobile](screenshots/Start_New_Conversation_Search_Mobile.png)
+*Mobile user search interface*
+
+###  & User Menu
+
+
+### Navigation & User Profile
+
+#### Header Navigation - Web
+![Header Navigation](screenshots/Header_Navigation_web.png)
+*Top navigation bar showing profile button and user menu access*
+
+
+#### Profile Settings - Web
+![Profile Web](screenshots/profile_setting_web.png)
+*User profile and settings interface*
+
+
+## Project Structure
 
 ```
 src/
@@ -150,7 +205,7 @@ src/
 └── utils/               # Utility functions
 ```
 
-## 🔧 Configuration
+## Configuration
 
 ### Environment Variables
 
@@ -192,7 +247,7 @@ The frontend expects the following API endpoints:
 - `user-offline` - User went offline
 - `conversation-updated` - Conversation was updated
 
-## 🎨 Customization
+## Customization
 
 ### Theming
 
@@ -221,7 +276,7 @@ The app is responsive and uses Material-UI's breakpoint system:
 - `lg`: 1200px and up (large desktop)
 - `xl`: 1536px and up (extra large)
 
-## 🧪 Development
+## Development
 
 ### Available Scripts
 
@@ -236,36 +291,7 @@ The project uses:
 - **ESLint** for code linting
 - **TypeScript** for type safety
 - **Prettier** for code formatting (recommended)
-
-### Adding New Features
-
-1. Create components in appropriate folders
-2. Add TypeScript interfaces in `src/types/`
-3. Update services if new API calls are needed
-4. Add routes in `src/App.tsx` if needed
-5. Update this README with new features
-
-## 🚨 Troubleshooting
-
-### Common Issues
-
-1. **Connection refused errors**
-   - Ensure the backend server is running
-   - Check the `VITE_API_URL` and `VITE_SOCKET_URL` environment variables
-
-2. **Authentication not working**
-   - Check if JWT tokens are being stored in localStorage
-   - Verify API endpoints are correct
-   - Check browser console for errors
-
-3. **Real-time messages not working**
-   - Ensure Socket.IO connection is established
-   - Check browser network tab for WebSocket connections
-   - Verify backend Socket.IO server is running
-
-4. **Build issues**
-   - Clear node_modules and reinstall: `rm -rf node_modules && npm install`
-   - Check for TypeScript errors: `npm run build`
+`
 
 ### Debug Mode
 
@@ -273,22 +299,3 @@ Enable debug mode by setting localStorage:
 ```javascript
 localStorage.setItem('debug', 'socket.io-client:*');
 ```
-
-## 📄 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/new-feature`
-3. Commit your changes: `git commit -am 'Add new feature'`
-4. Push to the branch: `git push origin feature/new-feature`
-5. Submit a pull request
-
-## 📞 Support
-
-For support and questions:
-- Create an issue in the repository
-- Check the troubleshooting section above
-- Review the backend documentation for API-related issues
