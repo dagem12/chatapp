@@ -142,6 +142,7 @@ export interface ChatState {
   isLoading: boolean;
   isLoadingMore: boolean;
   isLoadingMoreMessages: boolean;
+  isLoadingConversation: boolean;
   error: string | null;
   conversationsPagination: {
     page: number;

@@ -30,6 +30,7 @@ type ChatAction =
   | { type: 'SET_LOADING'; payload: boolean }
   | { type: 'SET_LOADING_MORE'; payload: boolean }
   | { type: 'SET_LOADING_MORE_MESSAGES'; payload: boolean }
+  | { type: 'SET_LOADING_CONVERSATION'; payload: boolean }
   | { type: 'SET_ERROR'; payload: string }
   | { type: 'CLEAR_ERROR' }
   | { type: 'SET_CONVERSATIONS'; payload: { conversations: ConversationPreview[]; pagination: any } }
@@ -59,8 +60,11 @@ const chatReducer = (state: ChatState, action: ChatAction): ChatState => {
     case 'SET_LOADING_MORE_MESSAGES':
       return { ...state, isLoadingMoreMessages: action.payload };
     
+    case 'SET_LOADING_CONVERSATION':
+      return { ...state, isLoadingConversation: action.payload };
+    
     case 'SET_ERROR':
-      return { ...state, error: action.payload, isLoading: false, isLoadingMore: false, isLoadingMoreMessages: false };
+      return { ...state, error: action.payload, isLoading: false, isLoadingMore: false, isLoadingMoreMessages: false, isLoadingConversation: false };
     
     case 'CLEAR_ERROR':
       return { ...state, error: null };
@@ -82,7 +86,7 @@ const chatReducer = (state: ChatState, action: ChatAction): ChatState => {
       };
     
     case 'SET_CURRENT_CONVERSATION':
-      return { ...state, currentConversation: action.payload, isLoading: false };
+      return { ...state, currentConversation: action.payload, isLoading: false, isLoadingConversation: false };
     
     case 'SET_MESSAGES':
       const sortedMessages = action.payload.messages.sort((a, b) => 
@@ -416,6 +420,7 @@ const chatReducer = (state: ChatState, action: ChatAction): ChatState => {
         isLoading: false,
         isLoadingMore: false,
         isLoadingMoreMessages: false,
+        isLoadingConversation: false,
         error: null,
         conversationsPagination: null,
         messagesPagination: null,
@@ -434,6 +439,7 @@ const initialState: ChatState = {
   isLoading: false,
   isLoadingMore: false,
   isLoadingMoreMessages: false,
+  isLoadingConversation: false,
   error: null,
   conversationsPagination: null,
   messagesPagination: null,
@@ -530,7 +536,8 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
 
   const selectConversation = useCallback(async (conversationId: string): Promise<void> => {
     try {
-      dispatch({ type: 'SET_LOADING', payload: true });
+      // Set conversation loading state (for chat area)
+      dispatch({ type: 'SET_LOADING_CONVERSATION', payload: true });
       
       // Leave current conversation room
       if (state.currentConversation) {

@@ -91,6 +91,12 @@ export const TypingIndicator: React.FC<TypingIndicatorProps> = ({
           transition: 'height 0.3s ease-in-out',
           px: 2,
           py: 1,
+          backgroundColor: 'grey.50',
+          borderTop: 1,
+          borderColor: 'divider',
+          minHeight: isVisible ? '40px' : 0,
+          display: 'flex',
+          alignItems: 'center',
         }}
       >
         <Typography
@@ -101,6 +107,7 @@ export const TypingIndicator: React.FC<TypingIndicatorProps> = ({
             display: 'flex',
             alignItems: 'center',
             gap: 1,
+            fontSize: '0.75rem',
           }}
         >
           <Box

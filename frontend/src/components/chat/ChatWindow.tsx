@@ -27,6 +27,7 @@ const ChatWindow: React.FC = () => {
     sendMessage, 
     loadMoreMessages, 
     isLoadingMoreMessages,
+    isLoadingConversation,
     messagesPagination,
     markRecentMessagesAsRead
   } = useChat();
@@ -37,19 +38,31 @@ const ChatWindow: React.FC = () => {
   const previousMessageCountRef = useRef<number>(0);
   const isInitialLoadRef = useRef<boolean>(true);
 
+  // Reset initial load flag when conversation changes
+  useEffect(() => {
+    isInitialLoadRef.current = true;
+    previousMessageCountRef.current = 0;
+  }, [currentConversation?.id]);
+
   // Auto-scroll to bottom when new messages arrive (but not when loading old messages)
   useEffect(() => {
     const currentMessageCount = messages.length;
     const previousMessageCount = previousMessageCountRef.current;
     
-    // Always auto-scroll on initial load
-    if (isInitialLoadRef.current) {
-      scrollToBottom();
-      isInitialLoadRef.current = false;
+    // Always auto-scroll on initial load (when messages first load)
+    if (isInitialLoadRef.current && messages.length > 0) {
+      // Small delay to ensure messages are rendered
+      setTimeout(() => {
+        scrollToBottom();
+        isInitialLoadRef.current = false;
+      }, 100);
     }
-    // Only auto-scroll if new messages were added (not when loading old messages)
+    // Only auto-scroll if new messages were added AND user is near the bottom
     else if (currentMessageCount > previousMessageCount && !isLoadingMoreMessages) {
-      scrollToBottom();
+      // Only auto-scroll if user is near the bottom of the chat
+      if (isNearBottom()) {
+        scrollToBottom();
+      }
     }
     
     // Update the previous count
@@ -60,6 +73,18 @@ const ChatWindow: React.FC = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  // Check if user is near the bottom of the chat
+  const isNearBottom = () => {
+    const element = messagesContainerRef.current;
+    if (!element) return true;
+    
+    const { scrollTop, scrollHeight, clientHeight } = element;
+    const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+    
+    // Consider "near bottom" if within 100px of the bottom
+    return distanceFromBottom < 100;
+  };
+
   // Infinite scroll handler for messages
   const handleMessagesScroll = useCallback(() => {
     const element = messagesContainerRef.current;
@@ -68,7 +93,9 @@ const ChatWindow: React.FC = () => {
     const { scrollTop } = element;
     const isNearTop = scrollTop < 100; // Load more when near the top (for older messages)
 
+    // Only load more messages when scrolling up near the top
     if (isNearTop && messagesPagination?.hasNext && !isLoadingMoreMessages) {
+      console.log('Loading more messages...', { scrollTop, hasNext: messagesPagination.hasNext });
       loadMoreMessages();
     }
   }, [messagesPagination, isLoadingMoreMessages, loadMoreMessages]);
@@ -178,12 +205,26 @@ const ChatWindow: React.FC = () => {
           p: 3,
         }}
       >
-        <Typography variant="h5" color="text.secondary" gutterBottom>
-          Welcome to Chat App
-        </Typography>
-        <Typography variant="body1" color="text.secondary" textAlign="center">
-          Select a conversation from the sidebar to start chatting, or create a new conversation.
-        </Typography>
+        {isLoadingConversation ? (
+          <>
+            <CircularProgress size={40} sx={{ mb: 2 }} />
+            <Typography variant="h6" color="text.secondary" gutterBottom>
+              Loading conversation...
+            </Typography>
+            <Typography variant="body2" color="text.secondary" textAlign="center">
+              Please wait while we load the conversation.
+            </Typography>
+          </>
+        ) : (
+          <>
+            <Typography variant="h5" color="text.secondary" gutterBottom>
+              Welcome to Chat App
+            </Typography>
+            <Typography variant="body1" color="text.secondary" textAlign="center">
+              Select a conversation from the sidebar to start chatting, or create a new conversation.
+            </Typography>
+          </>
+        )}
       </Box>
     );
   }
@@ -239,6 +280,7 @@ const ChatWindow: React.FC = () => {
           flex: 1,
           overflow: 'auto',
           backgroundColor: 'grey.50',
+          position: 'relative',
         }}
       >
         {/* Loading more messages indicator at the top */}
@@ -252,14 +294,16 @@ const ChatWindow: React.FC = () => {
         )}
         
         <MessageList messages={messages} currentUserId={user?.id || ''} />
-        {currentConversation && (
-          <TypingIndicator 
-            conversationId={currentConversation.id} 
-            currentUserId={user?.id || ''} 
-          />
-        )}
         <div ref={messagesEndRef} />
       </Box>
+
+      {/* Typing Indicator - Above Input Box */}
+      {currentConversation && (
+        <TypingIndicator 
+          conversationId={currentConversation.id} 
+          currentUserId={user?.id || ''} 
+        />
+      )}
 
       {/* Message Input */}
       <Paper
