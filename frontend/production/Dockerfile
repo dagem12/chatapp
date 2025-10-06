@@ -7,8 +7,8 @@ WORKDIR /app
 # Copy package files from parent directory (frontend root)
 COPY ../package*.json ./
 
-# Install dependencies
-RUN npm ci --only=production
+# Install all dependencies (including dev dependencies for build)
+RUN npm ci
 
 # Copy source code from parent directory
 COPY ../src ./src
