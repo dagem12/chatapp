@@ -4,16 +4,16 @@ This module provides comprehensive messaging functionality for the chat applicat
 
 ## Features
 
-- ✅ Create, read, update, and delete messages
-- ✅ Create and manage conversations
-- ✅ Pagination for message history (both offset and cursor-based)
-- ✅ Mark messages as read functionality
-- ✅ Proper validation and error handling
-- ✅ JWT authentication required for all endpoints
-- ✅ Soft delete for messages
-- ✅ Message editing with time restrictions (15 minutes)
-- ✅ Unread message counting
-- ✅ Conversation participant management
+- Create, read, update, and delete messages
+- Create and manage conversations
+- Pagination for message history (both offset and cursor-based)
+- Mark messages as read functionality
+- Proper validation and error handling
+- JWT authentication required for all endpoints
+- Soft delete for messages
+- Message editing with time restrictions (15 minutes)
+- Unread message counting
+- Conversation participant management
 
 ## API Endpoints
 

@@ -4,13 +4,16 @@
 /build
 
 # Logs
-logs
+logs/
 *.log
 npm-debug.log*
 pnpm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
+
+# PM2 logs
+.pm2/
 
 # OS
 .DS_Store
@@ -41,6 +44,17 @@ lerna-debug.log*
 .env.test.local
 .env.production.local
 .env.local
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Uploads
+uploads/
+
+# Docker
+.docker/
 
 # temp directory
 .temp
