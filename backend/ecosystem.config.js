@@ -9,9 +9,9 @@ module.exports = {
         NODE_ENV: 'development',
         PORT: 3000,
         // Redis configuration for multi-instance scaling
-        REDIS_HOST: 'localhost',
-        REDIS_PORT: 6379,
-        REDIS_PASSWORD: '',
+        REDIS_HOST: process.env.REDIS_HOST || 'redis',
+        REDIS_PORT: process.env.REDIS_PORT || 6379,
+        REDIS_PASSWORD: process.env.REDIS_PASSWORD || 'redis123',
         REDIS_DB: 0,
         // Redis connection settings for clustering
         REDIS_RETRY_DELAY_ON_FAILOVER: 100,
