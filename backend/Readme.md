@@ -1,6 +1,6 @@
 # Chat App Backend
 
-A modern, scalable chat application backend built with NestJS, PostgreSQL, Redis, and WebSockets. This application provides real-time messaging capabilities with user authentication, conversation management, and message persistence.
+A chat application backend built with NestJS, PostgreSQL, Redis, and WebSockets. This application provides real-time messaging capabilities with user authentication, conversation management, and message persistence.
 
 ## Features
 
@@ -35,10 +35,6 @@ A modern, scalable chat application backend built with NestJS, PostgreSQL, Redis
 
 ```
 backend/
-├── docs/                           # Documentation
-│   ├── DOCKER_SETUP.md            # Docker setup guide
-│   ├── PM2_CLUSTER_SETUP.md       # PM2 cluster configuration
-│   └── REDIS_INTEGRATION.md       # Redis integration guide
 ├── prisma/                         # Database configuration
 │   ├── migrations/                 # Database migrations
 │   │   └── 20251003161729_migration1/
@@ -611,13 +607,6 @@ docker-compose logs redis
 # Access container shell
 docker-compose exec backend sh
 ```
-
-## Additional Documentation
-
-- [PM2 Cluster Setup](docs/PM2_CLUSTER_SETUP.md)
-- [Redis Integration](docs/REDIS_INTEGRATION.md)
-- [Logger Module](src/logger/README.md)
-- [Messages Module](src/messages/README.md)
 
 ## Contributing
 
