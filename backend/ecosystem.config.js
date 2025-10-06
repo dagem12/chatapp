@@ -55,9 +55,9 @@ module.exports = {
       // PM2 configuration for cluster mode
       watch: false,
       max_memory_restart: '1G',
-      error_file: './logs/err.log',
-      out_file: './logs/out.log',
-      log_file: './logs/combined.log',
+      error_file: '/tmp/pm2-err.log',
+      out_file: '/tmp/pm2-out.log',
+      log_file: '/tmp/pm2-combined.log',
       time: true,
       // Graceful shutdown settings
       kill_timeout: 10000,
