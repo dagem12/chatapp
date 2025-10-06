@@ -20,7 +20,7 @@ services:
       # Mount nginx config (optional - can be built into image)
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
     networks:
-      - chat-network
+      - backend_chat-network
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:80"]
@@ -47,7 +47,7 @@ services:
       - ./nginx-proxy.conf:/etc/nginx/nginx.conf:ro
       - ./ssl:/etc/nginx/ssl:ro  # SSL certificates (optional)
     networks:
-      - chat-network
+      - backend_chat-network
     depends_on:
       - frontend
     restart: unless-stopped
@@ -60,7 +60,7 @@ services:
       retries: 3
 
 networks:
-  chat-network:
+  backend_chat-network:
     external: true
 
 # No persistent volumes needed for frontend
