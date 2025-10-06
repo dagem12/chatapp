@@ -28,24 +28,12 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-    # Conditional startup script
+    # Always start container's nginx
     command: >
       sh -c "
-        echo 'Checking for existing Nginx installation...';
-        if command -v nginx >/dev/null 2>&1; then
-          echo 'Nginx detected on host system';
-          echo 'Running in proxy mode - using host Nginx configuration';
-          # Use host nginx config
-          cp /etc/nginx/nginx.conf /etc/nginx/nginx.conf.backup;
-          echo 'Frontend container ready for host Nginx proxy';
-          # Keep container running but don't start nginx
-          tail -f /dev/null;
-        else
-          echo 'No Nginx detected on host system';
-          echo 'Running in standalone mode with built-in Nginx';
-          echo 'Starting built-in Nginx server...';
-          nginx -g 'daemon off;';
-        fi
+        echo 'Starting built-in Nginx server...';
+        echo 'Running in standalone mode with container Nginx';
+        nginx -g 'daemon off;';
       "
 
   # Optional: Nginx proxy service (only if host doesn't have nginx)
