@@ -214,7 +214,6 @@ jest.config.js
 jest-e2e.json
 
 # PM2
-ecosystem.config.js
 .pm2
 
 # Uploads (if any)
