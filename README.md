@@ -241,20 +241,97 @@ VITE_APP_VERSION=1.0.0
 
 ## Deployment
 
-### Docker Deployment
+### Production Deployment with Docker
+
+The application is designed for production deployment using Docker Compose with separate configurations for frontend and backend.
+
+#### 1. Backend Deployment
+
 ```bash
-# Start all services
+# Navigate to backend directory
+cd backend
+
+# Create environment file
+cp .env.example .env
+# Edit .env with your production values
+
+# Start backend services (PostgreSQL, Redis, Backend)
 docker-compose up -d
 
-# Scale backend instances
-docker-compose up --scale backend=3 -d
-
-# View logs
-docker-compose logs -f
+# Check status
+docker-compose ps
 ```
 
-### Production Deployment
-For production deployment with PM2 cluster configuration, see the [Backend README](backend/README.md) for detailed instructions.
+**Backend Services:**
+- **Backend API**: `http://YOUR_SERVER_IP:3000`
+- **PostgreSQL**: Port 5433 (internal)
+- **Redis**: Port 6380 (internal)
+- **Network**: `backend_chat-network`
+
+#### 2. Frontend Deployment
+
+```bash
+# Navigate to frontend production directory
+cd frontend/production
+
+# Create environment file
+cp env.example .env
+# Edit .env with your production values
+
+# Build and start frontend
+docker-compose build --no-cache frontend
+docker-compose up -d frontend
+```
+
+**Frontend Configuration:**
+- **Frontend**: `http://YOUR_SERVER_IP:3333`
+- **Network**: Connects to `backend_chat-network`
+- **Proxy**: Nginx proxies API requests to backend
+
+#### 3. Environment Variables
+
+**Backend (.env):**
+```bash
+JWT_SECRET=your-secure-jwt-secret
+POSTGRES_PASSWORD=your-postgres-password
+REDIS_PASSWORD=your-redis-password
+```
+
+**Frontend (.env):**
+```bash
+VITE_API_URL=http://YOUR_SERVER_IP:3000
+VITE_SOCKET_URL=http://YOUR_SERVER_IP:3000
+BACKEND_HOST=chat-app-backend
+BACKEND_PORT=3000
+FRONTEND_PORT=3333
+```
+
+#### 4. Health Checks
+
+```bash
+# Backend health
+curl http://YOUR_SERVER_IP:3000/health
+
+# Frontend health
+curl http://YOUR_SERVER_IP:3333
+
+# Check all containers
+docker ps
+```
+
+### Development Deployment
+
+For development, use the standard npm commands:
+
+```bash
+# Backend
+cd backend
+npm run start:dev
+
+# Frontend
+cd frontend
+npm run dev
+```
 
 ## Development
 
@@ -277,25 +354,4 @@ npm run preview      # Preview production build
 npm run lint         # Run ESLint
 ```
 
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Support
-
-For support and questions:
-- Check the documentation in the `frontend/README.md` and `backend/README.md` files
-- Open an issue on GitHub
-- Review the API documentation in the backend README
-
----
-
-**Built with ❤️ using React, NestJS, PostgreSQL, and Redis**
+#

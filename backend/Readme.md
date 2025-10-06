@@ -160,17 +160,38 @@ docker-compose logs -f backend
 docker-compose ps
 ```
 
-### 4. Initialize Database
+### 4. Database Migration
 
-The database will be automatically migrated and seeded when you start the services. If you need to run migrations manually:
+The database migration is **automatically handled** by the `migrate` service:
+
+- **First run**: Creates initial migration if none exist
+- **Subsequent runs**: Applies existing migrations
+- **No manual intervention required**
+
+If you need to run migrations manually:
 
 ```bash
-# Run migrations
-docker-compose exec backend npx prisma migrate deploy
+# Run migrations manually
+docker-compose run --rm migrate
 
 # Seed the database
 docker-compose exec backend npm run db:seed
 ```
+
+### 5. Service Details
+
+| Service | Port | Description |
+|---------|------|-------------|
+| `backend` | 3000 | Main NestJS application with PM2 |
+| `postgres` | 5433 | PostgreSQL database |
+| `redis` | 6380 | Redis cache and session store |
+| `migrate` | - | Database migration service (runs once) |
+
+### 6. Network Configuration
+
+- **Network**: `backend_chat-network` (created automatically)
+- **Frontend Integration**: Frontend connects to this network
+- **Internal Communication**: Services communicate via container names
 
 ### 5. Access the Application
 

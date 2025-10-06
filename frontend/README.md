@@ -70,167 +70,70 @@ npm run build
 npm run preview
 ```
 
-## Docker Deployment
+## Deployment
 
-The frontend includes Docker deployment with multi-stage build and automatic Nginx configuration.
+### Development
 
-### Quick Start
-
-**Automated Setup:**
-```bash
-# Linux/macOS
-chmod +x setup-docker.sh
-./setup-docker.sh
-
-
-**Manual Setup:**
-```bash
-# Create environment file
-cp .env.example .env
-# Edit .env with your configuration
-
-# Build and start containers
-docker-compose up -d --build
-```
-
-**Direct Docker Build:**
-```bash
-# Build the Docker image
-docker build -t chat-app-frontend .
-
-# Run the container
-docker run -p 3000:80 \
-  -e VITE_API_URL=http://localhost:3000 \
-  -e VITE_SOCKET_URL=http://localhost:3000 \
-  chat-app-frontend
-```
-
-### Docker Build Process
-
-The Dockerfile uses a multi-stage build:
-
-1. **Builder Stage**: 
-   - Uses Node.js 20 Alpine
-   - Installs dependencies and builds the React app
-   - Creates optimized production build in `/app/dist`
-
-2. **Production Stage**:
-   - Uses Nginx Alpine (lightweight)
-   - Copies built files to `/usr/share/nginx/html`
-   - Copies nginx configuration and .env file
-   - Serves static files and proxies API calls
-
-### Nginx Configuration
-
-The Docker container automatically detects if Nginx is installed on the host:
-
-**When Nginx is detected (Proxy Mode):**
-- Container runs on port 3000 (configurable via `FRONTEND_PORT`)
-- Configure host Nginx to proxy to `http://localhost:3000`
-
-**When no Nginx is detected (Standalone Mode):**
-- Container runs on port 80 with built-in Nginx
-- Access directly at `http://localhost:80`
-- Built-in Nginx handles both frontend and backend proxying
-
-### Environment Configuration
-
-Create `.env` file:
-```env
-# Port Configuration
-FRONTEND_PORT=3000                    # Port where frontend container runs
-NGINX_PORT=80                         # Port for nginx-proxy service
-NGINX_SSL_PORT=443                    # Port for SSL/HTTPS (optional)
-
-# Backend Configuration
-BACKEND_HOST=host.docker.internal     # Backend server host (host.docker.internal for Docker)
-BACKEND_PORT=3000                     # Backend server port
-
-# Application Configuration (Vite Environment Variables)
-VITE_API_URL=http://localhost:3000    # Backend API base URL (used by frontend)
-VITE_SOCKET_URL=http://localhost:3000 # Socket.IO server URL (used by frontend)
-VITE_APP_NAME=Chat App                # Application name displayed in UI
-VITE_APP_VERSION=1.0.0                # Application version
-```
-
-**For production, update server configuration:**
-```env
-# Single server production example
-BACKEND_HOST=192.168.1.100
-BACKEND_PORT=3000
-VITE_API_URL=http://yourdomain.com:3000
-VITE_SOCKET_URL=http://yourdomain.com:3000
-```
-
-**For multiple backend servers (load balancing):**
-```env
-# Multi-server production example (backend load balancing only)
-BACKEND_HOST=192.168.1.100  # Primary backend
-BACKEND_PORT=3000
-VITE_API_URL=http://yourdomain.com:3000
-VITE_SOCKET_URL=http://yourdomain.com:3000
-```
-
-**Note:** 
-- All configuration is now unified in `.env` file for both development and production
-- The nginx.conf uses `${BACKEND_HOST}:${BACKEND_PORT}` from environment variables
-- To enable backend load balancing, edit `nginx.conf` and uncomment the multiple server lines
-- Update server IPs in nginx.conf to match your actual backend servers
-
-### Docker Commands
+For development, use the standard Vite dev server:
 
 ```bash
-# Build and start services
-docker-compose up -d --build
+# Start development server
+npm run dev
 
-# View logs
-docker-compose logs -f
-
-# Stop services
-docker-compose down
-
-# Rebuild without cache
-docker-compose build --no-cache
-
-# Use nginx-proxy service (optional)
-docker-compose --profile proxy up -d
-
-# Check container health
-docker-compose ps
-
-# Access container shell
-docker-compose exec frontend sh
-
-# View nginx configuration
-docker-compose exec frontend cat /etc/nginx/nginx.conf
+# The app will be available at http://localhost:5173
 ```
 
 ### Production Deployment
 
-1. **Update environment variables** for production URLs in `.env` file
-2. **Build the Docker image** with production configuration
-3. **Configure SSL** (optional) by adding certificates to `ssl/` directory
-4. **Deploy with docker-compose** or direct Docker commands
-5. **Monitor health** using built-in health checks
+For production deployment, use the Docker configuration in the `production/` folder:
 
-**Production Build Example:**
 ```bash
-# Build for production
-docker build -t chat-app-frontend:latest .
+# Navigate to production directory
+cd production
 
-# Run with production environment
-docker run -d \
-  --name chat-frontend \
-  -p 80:80 \
-  -e VITE_API_URL=https://api.yourdomain.com \
-  -e VITE_SOCKET_URL=https://api.yourdomain.com \
-  chat-app-frontend:latest
+# Create environment file
+cp env.example .env
+
+# Edit .env with your production values
+nano .env
+
+# Build and run
+docker-compose build --no-cache frontend
+docker-compose up -d frontend
 ```
 
-**Health Monitoring:**
-- Health check endpoint: `http://yourdomain.com/health`
-- Backend health check: `http://yourdomain.com/health/backend`
-- Container health: `docker-compose ps`
+**Production Configuration:**
+- **Location**: `frontend/production/`
+- **Network**: Connects to `backend_chat-network`
+- **Port**: Configurable via `FRONTEND_PORT` (default: 3333)
+- **Proxy**: Nginx proxies API requests to backend
+
+### Environment Variables
+
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `VITE_API_URL` | API base URL for browser requests | `http://196.189.149.214:3000` | Yes |
+| `VITE_SOCKET_URL` | WebSocket URL for browser requests | `http://196.189.149.214:3000` | Yes |
+| `BACKEND_HOST` | Backend container name for nginx proxy | `chat-app-backend` | Yes |
+| `BACKEND_PORT` | Backend container port | `3000` | Yes |
+| `FRONTEND_PORT` | External port for frontend | `3333` | No |
+
+### Health Checks
+
+```bash
+# Check frontend health
+curl http://YOUR_SERVER_IP:3333
+
+# Check container logs
+docker logs chat-app-frontend
+
+# Check container status
+docker ps | grep frontend
+```
+
+For detailed production deployment instructions, see [production/README.md](production/README.md).
+
+
 
 ## Screenshots
 

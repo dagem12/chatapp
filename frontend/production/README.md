@@ -1,4 +1,4 @@
-# Production Deployment
+# Frontend Production Deployment
 
 This folder contains all the production deployment configurations for the Chat App frontend.
 
@@ -9,34 +9,91 @@ This folder contains all the production deployment configurations for the Chat A
 - **nginx.conf** - Nginx configuration for production web server
 - **env.example** - Environment variables template
 
+## Prerequisites
 
-## Usage
+- Docker and Docker Compose installed
+- Backend services running (see `backend/README.md`)
+- Backend network `backend_chat-network` must exist
 
-### For Development
-- Use `npm run dev` from the main frontend directory
-- No need to use files in this production folder
+## Quick Start
 
-### For Production Deployment
+1. **Navigate to production folder:**
+   ```bash
+   cd frontend/production
+   ```
 
-1. Navigate to this production folder: `cd frontend/production`
-2. Copy the example file: `cp env.example .env` (creates `.env` in `frontend/production/`)
-3. Edit `.env` with your production values
-4. Make sure Docker Desktop is running
-5. Build and run with Docker Compose: `docker-compose up -d`
+2. **Create environment file:**
+   ```bash
+   cp env.example .env
+   ```
 
-### Build Context
-- The Docker build context is set to the parent directory (`..`) to access the source code
-- The Dockerfile is located in this production folder
-- This allows the build to access both the source code and production configurations
+3. **Edit `.env` with your values:**
+   ```bash
+   # API Configuration - Use external IP for browser access
+   VITE_API_URL=http://YOUR_SERVER_IP:3000
+   VITE_SOCKET_URL=http://YOUR_SERVER_IP:3000
+   
+   # Backend Configuration (for nginx proxy)
+   BACKEND_HOST=chat-app-backend
+   BACKEND_PORT=3000
+   
+   # Port Configuration
+   FRONTEND_PORT=3333
+   ```
 
+4. **Build and run:**
+   ```bash
+   docker-compose build --no-cache frontend
+   docker-compose up -d frontend
+   ```
 
+## Configuration Details
 
+### Environment Variables
 
-### Default Values
-If no .env file or environment variables are set, Docker Compose will use the default values defined in docker-compose.yml.
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `VITE_API_URL` | API base URL for browser requests | `http://196.189.149.214:3000` | Yes |
+| `VITE_SOCKET_URL` | WebSocket URL for browser requests | `http://196.189.149.214:3000` | Yes |
+| `BACKEND_HOST` | Backend container name for nginx proxy | `chat-app-backend` | Yes |
+| `BACKEND_PORT` | Backend container port | `3000` | Yes |
+| `FRONTEND_PORT` | External port for frontend | `3333` | No |
 
-## Notes
+### Network Configuration
 
-- These files are separated from development code for better organization
-- All production-specific configurations are contained in this folder
-- Development uses the standard Vite dev server without Docker/Nginx
+- **External Network**: Frontend connects to `backend_chat-network` (created by backend)
+- **Internal Communication**: Nginx proxies API requests to `chat-app-backend:3000`
+- **Browser Access**: Frontend accessible on `http://YOUR_SERVER_IP:3333`
+
+### Build Process
+
+- **Build Context**: Parent directory (`..`) to access source code
+- **Environment Variables**: Passed during build time via Docker build args
+- **Multi-stage Build**: Node.js build stage + Nginx production stage
+
+## Troubleshooting
+
+### Common Issues
+
+1. **"host not found in upstream" error:**
+   - Ensure backend is running: `docker ps | grep backend`
+   - Check network exists: `docker network ls | grep chat-network`
+
+2. **Frontend still uses localhost:**
+   - Rebuild with no cache: `docker-compose build --no-cache frontend`
+   - Verify `.env` file exists and has correct values
+
+3. **Port conflicts:**
+   - Change `FRONTEND_PORT` in `.env` if port 3333 is in use
+
+### Health Checks
+
+- **Frontend Health**: `curl http://localhost:3333`
+- **Container Logs**: `docker logs chat-app-frontend`
+- **Network Connectivity**: `docker exec chat-app-frontend nslookup chat-app-backend`
+
+## Development vs Production
+
+- **Development**: Use `npm run dev` from main frontend directory
+- **Production**: Use Docker Compose from this production folder
+- **Environment Variables**: Development uses `.env` in frontend root, production uses `.env` in this folder
