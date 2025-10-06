@@ -4,14 +4,18 @@ FROM node:20-alpine AS builder
 # Set working directory
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
+# Copy package files from parent directory (frontend root)
+COPY ../package*.json ./
 
 # Install dependencies
 RUN npm ci --only=production
 
-# Copy source code
-COPY . .
+# Copy source code from parent directory
+COPY ../src ./src
+COPY ../public ./public
+COPY ../index.html ./
+COPY ../vite.config.ts ./
+COPY ../tsconfig*.json ./
 
 # Build the application
 RUN npm run build
@@ -22,7 +26,7 @@ FROM nginx:alpine
 # Copy built application from builder stage
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Copy nginx configuration
+# Copy nginx configuration from current directory
 COPY nginx.conf /etc/nginx/nginx.conf
 
 # Copy .env file for runtime configuration (optional)
