@@ -26,11 +26,11 @@ FROM nginx:alpine
 # Copy built application from builder stage
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Copy nginx configuration from current directory
-COPY nginx.conf /etc/nginx/nginx.conf
+# Copy nginx configuration from production directory
+COPY production/nginx.conf /etc/nginx/nginx.conf
 
 # Copy .env file for runtime configuration (optional)
-COPY .env /app/.env
+COPY production/.env /app/.env
 
 # Expose port 80
 EXPOSE 80
