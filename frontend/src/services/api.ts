@@ -29,9 +29,13 @@ class ApiService {
       (response: AxiosResponse) => response,
       (error) => {
         if (error.response?.status === 401) {
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
-          window.location.href = '/login';
+          // Don't redirect if it's a login request
+          const isLoginRequest = error.config?.url?.includes('/auth/login');
+          if (!isLoginRequest) {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = '/login';
+          }
         }
         return Promise.reject(error);
       }

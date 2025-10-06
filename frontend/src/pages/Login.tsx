@@ -97,18 +97,32 @@ const Login: React.FC = () => {
         [field]: undefined,
       }));
     }
+
+    // Clear auth error when user starts typing
+    if (error) {
+      clearError();
+    }
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     
+    // Clear any previous errors
+    clearError();
+    
     if (!validateForm()) {
       return;
     }
 
-    const success = await login(formData);
-    if (success) {
-      navigate('/chat');
+    try {
+      const success = await login(formData);
+      if (success) {
+        navigate('/chat');
+      }
+      // If login fails, the error will be set by the useAuth hook
+    } catch (error) {
+      console.error('Login error:', error);
+      // Error is already handled by the useAuth hook
     }
   };
 
@@ -189,6 +203,7 @@ const Login: React.FC = () => {
                 handleSubmit={handleSubmit}
                 togglePasswordVisibility={togglePasswordVisibility}
                 setSuccessMessage={setSuccessMessage}
+                clearError={clearError}
               />
             </Box>
           </Fade>
@@ -279,6 +294,7 @@ const Login: React.FC = () => {
                   handleSubmit={handleSubmit}
                   togglePasswordVisibility={togglePasswordVisibility}
                   setSuccessMessage={setSuccessMessage}
+                  clearError={clearError}
                 />
               </Box>
             </Fade>
@@ -375,6 +391,7 @@ interface LoginFormProps {
   handleSubmit: (event: React.FormEvent) => Promise<void>;
   togglePasswordVisibility: () => void;
   setSuccessMessage: (message: string | null) => void;
+  clearError: () => void;
 }
 
 const LoginForm: React.FC<LoginFormProps> = ({
@@ -389,6 +406,7 @@ const LoginForm: React.FC<LoginFormProps> = ({
   handleSubmit,
   togglePasswordVisibility,
   setSuccessMessage,
+  clearError,
 }) => {
   return (
     <Slide direction="up" in timeout={800}>
@@ -466,6 +484,7 @@ const LoginForm: React.FC<LoginFormProps> = ({
                   fontSize: '1.5rem',
                 },
               }}
+              onClose={clearError}
             >
               {error}
             </Alert>
