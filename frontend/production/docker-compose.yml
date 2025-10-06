@@ -76,5 +76,4 @@ networks:
     driver: bridge
     external: false
 
-volumes:
-  # No persistent volumes needed for frontend
+# No persistent volumes needed for frontend
