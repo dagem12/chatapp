@@ -1,6 +1,11 @@
 # Chat App
 
-a real-time chat application built with React, TypeScript, NestJS, PostgreSQL, and Redis. Features real-time messaging, user authentication, responsive design, and scalable architecture.
+A real-time chat application built with React, TypeScript, NestJS, PostgreSQL, and Redis. Features real-time messaging, user authentication, responsive design, and scalable architecture.
+
+[![GitHub](https://img.shields.io/badge/GitHub-Repository-blue)](https://github.com/dagem12/chatapp)
+[![TypeScript](https://img.shields.io/badge/TypeScript-91.2%25-blue)](https://www.typescriptlang.org/)
+[![React](https://img.shields.io/badge/React-19-blue)](https://reactjs.org/)
+[![NestJS](https://img.shields.io/badge/NestJS-Framework-red)](https://nestjs.com/)
 
 ## Overview
 
@@ -76,13 +81,18 @@ For detailed backend setup, API documentation, and deployment instructions, see:
 
 1. **Clone the repository**
    ```bash
-   git clone <repository-url>
-   cd Chatapp
+   git clone https://github.com/dagem12/chatapp.git
+   cd chatapp
    ```
 
 2. **Start with Docker (Recommended)**
    ```bash
-   # Start all services
+   # Start backend services first
+   cd backend
+   docker-compose up -d
+   
+   # Wait for backend to be ready, then start frontend
+   cd ../frontend/production
    docker-compose up -d
    
    # View logs
@@ -156,20 +166,27 @@ For detailed backend setup, API documentation, and deployment instructions, see:
 ## Project Structure
 
 ```
-Chatapp/
+chatapp/
 ├── frontend/                 # React frontend application
 │   ├── src/                 # Source code
 │   ├── public/              # Static assets
 │   ├── screenshots/         # Application screenshots
+│   ├── production/          # Production Docker configuration
+│   │   ├── docker-compose.yml
+│   │   ├── Dockerfile
+│   │   ├── nginx.conf
+│   │   └── env.example
 │   ├── package.json         # Frontend dependencies
 │   └── README.md            # Frontend documentation
 ├── backend/                 # NestJS backend application
 │   ├── src/                 # Source code
 │   ├── prisma/              # Database schema and migrations
 │   ├── scripts/             # Utility scripts
+│   ├── logs/                # Application logs
+│   ├── docker-compose.yml   # Backend Docker orchestration
+│   ├── Dockerfile           # Backend container configuration
 │   ├── package.json         # Backend dependencies
 │   └── README.md            # Backend documentation
-├── docker-compose.yml       # Docker orchestration
 └── README.md               # This file
 ```
 
@@ -264,8 +281,8 @@ docker-compose ps
 
 **Backend Services:**
 - **Backend API**: `http://YOUR_SERVER_IP:3000`
-- **PostgreSQL**: Port 5433 (internal)
-- **Redis**: Port 6380 (internal)
+- **PostgreSQL**: Port 5433 (external), 5432 (internal)
+- **Redis**: Port 6380 (external), 6379 (internal)
 - **Network**: `backend_chat-network`
 
 #### 2. Frontend Deployment
@@ -287,20 +304,29 @@ docker-compose up -d frontend
 - **Frontend**: `http://YOUR_SERVER_IP:3333`
 - **Network**: Connects to `backend_chat-network`
 - **Proxy**: Nginx proxies API requests to backend
+- **Container**: `chat-app-frontend`
 
 #### 3. Environment Variables
 
 **Backend (.env):**
-```bash
+```env
+NODE_ENV=production
+PORT=3002
+DATABASE_URL=postgresql://postgres:postgres123@postgres:5432/chat_app
+REDIS_HOST=redis
+REDIS_PORT=6379
+REDIS_PASSWORD=redis123
 JWT_SECRET=your-secure-jwt-secret
-POSTGRES_PASSWORD=your-postgres-password
-REDIS_PASSWORD=your-redis-password
+CORS_ORIGIN=http://YOUR_SERVER_IP:3333
+POSTGRES_PASSWORD=postgres123
 ```
 
 **Frontend (.env):**
-```bash
+```env
 VITE_API_URL=http://YOUR_SERVER_IP:3000
 VITE_SOCKET_URL=http://YOUR_SERVER_IP:3000
+VITE_APP_NAME=Chat App
+VITE_APP_VERSION=1.0.0
 BACKEND_HOST=chat-app-backend
 BACKEND_PORT=3000
 FRONTEND_PORT=3333
@@ -317,6 +343,25 @@ curl http://YOUR_SERVER_IP:3333
 
 # Check all containers
 docker ps
+
+# Check container health status
+docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+```
+
+#### 5. Container Management
+
+```bash
+# Stop all services
+cd backend && docker-compose down
+cd ../frontend/production && docker-compose down
+
+# Restart specific service
+docker-compose restart backend
+docker-compose restart frontend
+
+# View logs for specific service
+docker-compose logs -f backend
+docker-compose logs -f frontend
 ```
 
 ### Development Deployment
@@ -353,5 +398,82 @@ npm run build        # Build for production
 npm run preview      # Preview production build
 npm run lint         # Run ESLint
 ```
+
+## Troubleshooting
+
+### Docker Issues
+
+#### Backend Container Unhealthy
+If the backend container shows as "unhealthy", check the following:
+
+1. **Port Configuration**: Ensure the health check is using the correct port
+   ```bash
+   # Check container logs
+   docker logs chat-app-backend
+   
+   # Check health status
+   docker inspect chat-app-backend --format='{{json .State.Health}}'
+   ```
+
+2. **Database Connection**: Verify PostgreSQL is running and accessible
+   ```bash
+   # Check PostgreSQL container
+   docker logs chat-app-postgres
+   
+   # Test database connection
+   docker exec -it chat-app-postgres psql -U postgres -d chat_app -c "SELECT 1;"
+   ```
+
+3. **Redis Connection**: Verify Redis is running
+   ```bash
+   # Check Redis container
+   docker logs chat-app-redis
+   
+   # Test Redis connection
+   docker exec -it chat-app-redis redis-cli ping
+   ```
+
+#### Common Solutions
+
+1. **Restart Services**:
+   ```bash
+   cd backend
+   docker-compose down
+   docker-compose up -d
+   ```
+
+2. **Rebuild Containers**:
+   ```bash
+   docker-compose down
+   docker-compose build --no-cache
+   docker-compose up -d
+   ```
+
+3. **Check Network Connectivity**:
+   ```bash
+   # Verify containers can communicate
+   docker network ls
+   docker network inspect backend_chat-network
+   ```
+
+### Environment Variables
+
+Make sure all required environment variables are set correctly:
+
+- **Backend**: Check `.env` file in `backend/` directory
+- **Frontend**: Check `.env` file in `frontend/production/` directory
+- **Database**: Ensure `DATABASE_URL` is correct
+- **Redis**: Verify `REDIS_HOST` and `REDIS_PASSWORD`
+
+### Port Conflicts
+
+If you encounter port conflicts:
+
+- **PostgreSQL**: Default external port is 5433
+- **Redis**: Default external port is 6380  
+- **Backend**: Default external port is 3000
+- **Frontend**: Default external port is 3333
+
+Change ports in your `.env` files if needed.
 
 #
