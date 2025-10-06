@@ -162,14 +162,6 @@ docker-compose down
 ![User Search Mobile](screenshots/Start_New_Conversation_Search_Mobile.png)
 *Mobile user search interface*
 
-###  & User Menu
-
-
-### Navigation & User Profile
-
-#### Header Navigation - Web
-![Header Navigation](screenshots/Header_Navigation_web.png)
-*Top navigation bar showing profile button and user menu access*
 
 
 #### Profile Settings - Web
