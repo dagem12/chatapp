@@ -49,11 +49,14 @@ COPY --from=builder --chown=nestjs:nodejs /app/prisma ./prisma
 # Copy PM2 ecosystem file
 COPY --chown=nestjs:nodejs ecosystem.config.js ./
 
-# Create logs directory
-RUN mkdir -p logs && chown nestjs:nodejs logs
+# Create logs directory with proper permissions
+RUN mkdir -p logs && chown -R nestjs:nodejs logs && chmod -R 755 logs
 
 # Switch to non-root user
 USER nestjs
+
+# Ensure logs directory is writable by the user
+RUN chmod -R 755 /app/logs
 
 # Expose port (using 3002 to avoid conflicts)
 EXPOSE 3002
