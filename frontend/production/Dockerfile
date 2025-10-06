@@ -17,7 +17,19 @@ COPY ../index.html ./
 COPY ../vite.config.ts ./
 COPY ../tsconfig*.json ./
 
-# Build the application
+# Copy environment variables for build
+COPY production/.env ./
+
+# Build the application with environment variables
+ARG VITE_API_URL
+ARG VITE_SOCKET_URL
+ARG VITE_APP_NAME
+ARG VITE_APP_VERSION
+ENV VITE_API_URL=$VITE_API_URL
+ENV VITE_SOCKET_URL=$VITE_SOCKET_URL
+ENV VITE_APP_NAME=$VITE_APP_NAME
+ENV VITE_APP_VERSION=$VITE_APP_VERSION
+
 RUN npm run build
 
 # Production stage with Nginx
